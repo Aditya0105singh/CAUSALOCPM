@@ -1,0 +1,113 @@
+\section{Formal Problem Statement}
+\label{sec:problem}
+
+We establish the formal foundation for the CausalOCPM framework, beginning
+with the data model and concluding with a precise statement of the causal
+policy evaluation problem.
+
+\begin{definition}[Object-Centric Event Log]
+\label{def:ocel}
+Let $\mathcal{L} = (E, \mathcal{O}, \mathit{OT}, \pi_{\mathit{act}},
+\pi_{\mathit{time}}, \pi_{\mathit{omap}})$ be an OCEL 2.0 event log where:
+\begin{itemize}
+    \item $E$ is a finite set of events;
+    \item $\mathcal{O}$ is a finite set of objects;
+    \item $\mathit{OT}$ is a finite set of object types;
+    \item $\pi_{\mathit{act}}: E \to \mathcal{A}$ maps events to activities
+          from a finite activity set $\mathcal{A}$;
+    \item $\pi_{\mathit{time}}: E \to \mathbb{R}$ maps events to timestamps;
+    \item $\pi_{\mathit{omap}}: E \to \mathcal{P}(\mathcal{O})$ maps each
+          event to the set of objects it involves.
+\end{itemize}
+\end{definition}
+
+\noindent The key distinction from classical (case-centric) event logs is that
+each event may involve objects of multiple types simultaneously --- for instance,
+a single \texttt{GoodsReceipt} event may reference a purchase order, a vendor,
+and a material item at once. This richer structure is essential for capturing
+cross-entity causal dependencies in real processes.
+
+\begin{definition}[Object-Centric Causal Process Model (OCPM)]
+\label{def:ocpm}
+Given an OCEL event log $\mathcal{L}$, let
+$\mathcal{V} = \{V_1, \ldots, V_k\}$ be a set of process variables derived
+from $\mathcal{L}$ (e.g., via case-level aggregation).
+An \emph{Object-Centric Causal Process Model} is a tuple
+$\mathcal{M} = (\mathcal{V}, \mathcal{D}, \mathcal{F}, \mathcal{U})$ where:
+\begin{itemize}
+    \item $\mathcal{D} = (\mathcal{V}, \mathcal{E_D})$ is a directed acyclic
+          graph (DAG) over $\mathcal{V}$;
+    \item $\mathcal{F} = \{f_i : \mathit{Pa}(V_i) \times U_i \to V_i\}_{i=1}^{k}$
+          are \emph{structural equations}, where $\mathit{Pa}(V_i)$ denotes
+          the parents of $V_i$ in $\mathcal{D}$ and $U_i$ is an exogenous
+          noise term;
+    \item $\mathcal{U} = \{U_1, \ldots, U_k\}$ are mutually independent
+          exogenous noise variables.
+\end{itemize}
+\end{definition}
+
+\noindent The structural equations $\mathcal{F}$ encode the data-generating
+process for each variable conditional on its causal parents. Unlike correlational
+regression models, these equations support the \emph{do}-operator: setting
+$V_i = v$ (an intervention) modifies $f_i$ but leaves all other equations intact,
+enabling counterfactual reasoning over the process.
+
+\begin{assumption}[Markov Condition]
+\label{ass:markov}
+Every variable $V_i \in \mathcal{V}$ is conditionally independent of its
+non-descendants in $\mathcal{D}$ given its parents $\mathit{Pa}(V_i)$.
+\end{assumption}
+
+\begin{assumption}[Faithfulness]
+\label{ass:faithfulness}
+All conditional independencies in the observed joint distribution
+$P(\mathcal{V})$ are entailed by the DAG $\mathcal{D}$ via the Markov
+condition (Assumption~\ref{ass:markov}). Equivalently, no conditional
+independence holds in $P(\mathcal{V})$ unless it is implied by the
+$d$-separation relations in $\mathcal{D}$.
+\end{assumption}
+
+\begin{assumption}[Causal Sufficiency]
+\label{ass:sufficiency}
+There are no unmeasured common causes of any two variables in $\mathcal{V}$.
+That is, all common causes of observed variables are themselves observed.
+\end{assumption}
+
+\noindent \textbf{Remark.} Assumption~\ref{ass:sufficiency} is the most
+restrictive. In practice, processes always contain unmeasured variables.
+We relax this assumption empirically in Section~\ref{sec:sensitivity} via
+sensitivity analysis for unmeasured confounding, following the methodology
+of \citet{cinelli2020making}. The sensitivity analysis quantifies how strong
+an unmeasured confounder would need to be to invalidate our conclusions.
+
+\begin{problem}[Causal Policy Evaluation in Object-Centric Process Mining]
+\label{prob:main}
+Given an OCEL event log $\mathcal{L}$ and a set of process variables
+$\mathcal{V}$ derived from $\mathcal{L}$, and given a treatment variable
+$T \in \mathcal{V}$ and outcome variable $Y \in \mathcal{V}$:
+
+\textbf{Find:} A DAG $\mathcal{D}$ over $\mathcal{V}$ and a structural
+causal model $\mathcal{M}$ such that for any intervention $do(T = t)$,
+the interventional distribution $P(Y \mid do(T = t))$ is identified and
+can be estimated from the observed data in $\mathcal{L}$.
+
+\textbf{Subject to:}
+\begin{enumerate}
+    \item Assumptions~\ref{ass:markov}--\ref{ass:sufficiency} (with robustness
+          to violation of~\ref{ass:sufficiency} quantified via sensitivity analysis);
+    \item The OCEL multi-object event structure of $\mathcal{L}$, under which
+          variables $T$ and $Y$ may derive from events referencing different
+          object types in $\mathit{OT}$;
+    \item The constraint that $\mathcal{D}$ may require cross-object-type
+          causal edges (e.g., $\texttt{order\_complexity} \to
+          \texttt{supplier\_a} \to \texttt{material\_lead\_time}$), where
+          each variable in the path is associated with a distinct object type
+          in $\pi_{\mathit{omap}}$.
+\end{enumerate}
+\end{problem}
+
+\noindent The primary challenge in Problem~\ref{prob:main} is that standard
+causal inference methods assume a flat, case-centric data model. We show in
+Section~\ref{sec:theorem} that backdoor adjustment remains valid under the
+OCEL multi-object structure, provided that the OCEL-to-variable mapping
+preserves the conditional independence structure of the underlying causal DAG.

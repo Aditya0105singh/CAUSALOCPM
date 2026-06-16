@@ -1,0 +1,49 @@
+\begin{table}[ht]
+\centering
+\caption{Capability Comparison: CausalOCPM vs Existing Process Analysis Tools.
+         \checkmark~= full support; Partial = limited or indirect support;
+         $\times$ = not supported.}
+\label{tab:comparison}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Capability} &
+\textbf{Celonis} &
+\textbf{ProM} &
+\textbf{DCR Graphs} &
+\textbf{DoWhy} &
+\textbf{CausalOCPM} \\
+& & & & \textit{(standalone)} & \\
+\midrule
+Object-centric event model
+    & \checkmark & Partial & $\times$ & $\times$ & \checkmark \\
+Automated causal discovery
+    & $\times$ & $\times$ & $\times$ & $\times$ & \checkmark \\
+Confounder identification
+    & $\times$ & $\times$ & $\times$ & Manual & \checkmark \\
+Backdoor adjustment
+    & $\times$ & $\times$ & $\times$ & \checkmark & \checkmark \\
+Counterfactual simulation
+    & $\times$ & $\times$ & Partial & \checkmark & \checkmark \\
+Case-level attribution
+    & Descriptive & $\times$ & $\times$ & $\times$ & SCM-grounded \\
+Multi-object interventions
+    & $\times$ & $\times$ & $\times$ & $\times$ & \checkmark \\
+Sensitivity analysis
+    & $\times$ & $\times$ & $\times$ & \checkmark & \checkmark \\
+Multi-domain generalisation
+    & \checkmark & \checkmark & $\times$ & $\times$ & \checkmark \\
+\midrule
+\multicolumn{6}{l}{\small \textit{Notes:}
+  Celonis supports OCEL via its Object-Centric Process Mining module (v24+).} \\
+\multicolumn{6}{l}{\small
+  ProM supports object-centric conformance checking (OC-Petri nets) but not
+  causal inference.} \\
+\multicolumn{6}{l}{\small
+  DCR Graphs support declarative process modelling with partial counterfactual
+  semantics.} \\
+\multicolumn{6}{l}{\small
+  DoWhy (standalone) requires a manually specified causal graph and is not
+  integrated with process mining.} \\
+\bottomrule
+\end{tabular}
+\end{table}
