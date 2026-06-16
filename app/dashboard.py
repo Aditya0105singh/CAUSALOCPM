@@ -39,77 +39,123 @@ with open(_css_path, encoding="utf-8") as _f:
 
 
 # ── THEME STATE (decided before BRAND_COLORS so every color below adapts) ─────
-if "theme" not in st.session_state:
-    st.session_state["theme"] = "dark"
-IS_LIGHT: bool = st.session_state["theme"] == "light"
+st.session_state["theme"] = "light"
+IS_LIGHT: bool = True
 
 if IS_LIGHT:
     st.markdown("""<style>
 :root {
-    --primary-color: #6C63FF !important;
+    --primary-color: #10B981 !important;
     --background-color: #FFFFFF !important;
     --secondary-background-color: #F8F9FB !important;
     --text-color: #1E293B !important;
 }
-.stApp, .main .block-container { background-color: #FFFFFF !important; }
+.stApp { background-color: #FFFFFF !important; }
+[data-testid="stHeader"] { display: none !important; }
+[data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    padding-top: 0 !important;
+}
+[data-testid="stMainBlockContainer"], [data-testid="stAppViewBlockContainer"], [data-testid="block-container"], .main .block-container { 
+    background-color: #FFFFFF !important; 
+    padding-top: 2rem !important; 
+    padding-bottom: 2rem !important; 
+    margin-top: 0 !important;
+}
+.element-container:has(style), .stMarkdown:has(style) {
+    display: none !important;
+}
 html, body, [class*="css"] { color: #1E293B !important; }
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #F8F9FB 0%, #FFFFFF 100%) !important;
-    border-right: 1px solid #E2E8F0 !important;
+    background: linear-gradient(180deg, rgba(248, 249, 251, 0.85) 0%, rgba(255, 255, 255, 0.95) 100%) !important;
+    backdrop-filter: blur(12px) !important;
+    border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
 }
-[data-testid="stSidebar"] hr, hr { border-color: #E2E8F0 !important; }
-::-webkit-scrollbar-track { background: #FFFFFF !important; }
+[data-testid="stSidebar"] hr, hr { border-color: rgba(226, 232, 240, 0.8) !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1 !important; }
 ::-webkit-scrollbar-thumb:hover { background: #94A3B8 !important; }
-[data-testid="stTabs"] > div:first-child {
-    background: #F1F2F6 !important; scrollbar-color: #CBD5E1 #FFFFFF !important;
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    background: rgba(241, 242, 246, 0.85) !important; backdrop-filter: blur(12px) !important;
+    scrollbar-color: #CBD5E1 transparent !important;
 }
-[data-testid="stTabs"] [data-baseweb="tab"] { color: #64748B !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:hover { background: rgba(108,99,255,0.10) !important; color: #1E293B !important; }
-[data-testid="stTabs"] [aria-selected="true"] { background: #6C63FF !important; color: #ffffff !important; }
-[data-testid="stMetric"] { background: #F8F9FB !important; border: 1px solid #E2E8F0 !important; border-left: 3px solid #6C63FF !important; }
-[data-testid="stMetricLabel"] { color: #64748B !important; }
-[data-testid="stMetricValue"] { color: #1E293B !important; }
-.content-card, .insight-box { background: #F8F9FB !important; border-color: #E2E8F0 !important; }
+[data-testid="stTabs"] button[data-baseweb="tab"] { color: #64748B !important; font-weight: 600 !important; }
+[data-testid="stTabs"] button[data-baseweb="tab"]:hover { background: rgba(16, 185, 129, 0.10) !important; color: #1E293B !important; }
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"],
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"]:hover,
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    color: #022C22 !important;
+    font-weight: 800 !important;
+    border-radius: 8px !important;
+    border: 1px solid #059669 !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+}
+
+[data-testid="stMetric"], .mcard, .content-card, .insight-box {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important;
+}
+[data-testid="stMetric"] { border-left: 3px solid #10B981 !important; }
+.insight-box { border-left: 4px solid #10B981 !important; }
+[data-testid="stMetric"]:hover, .mcard:hover, .content-card:hover, .insight-box:hover {
+    border-color: rgba(108,99,255,0.4) !important;
+}
+
+[data-testid="stMetricLabel"], .mcard-label, .mcard-unit, .mcard-sub { color: #64748B !important; }
+[data-testid="stMetricValue"], .mcard-value, .policy-value { color: #1E293B !important; }
 .insight-body { color: #475569 !important; }
-.hero-section { background: linear-gradient(135deg, #FFFFFF 0%, #F1F2F6 100%) !important; border-color: #E2E8F0 !important; }
-.hero-sub { color: #1E293B !important; }
-.hero-tag { color: #64748B !important; }
-ul[data-baseweb="menu"], [data-baseweb="list"] { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; }
-li[role="option"] { color: #1E293B !important; }
+.hero-section {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 242, 246, 0.9) 100%) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03) !important;
+    border-radius: 12px !important;
+    padding: 0.5rem 1.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+.hero-title { margin: 0 !important; font-size: 1.4rem !important; }
+.hero-sub { color: #1E293B !important; margin: 0 !important; font-size: 0.9rem !important; }
+.hero-tag { color: #64748B !important; margin: 0 !important; font-size: 0.75rem !important; }
+ul[data-baseweb="menu"], [data-baseweb="list"], div[role="listbox"], [data-testid="stVirtualDropdown"], [data-testid="stSelectboxVirtualDropdown"] { background: rgba(255,255,255,0.95) !important; backdrop-filter: blur(12px) !important; border: 1px solid #E2E8F0 !important; }
+li[role="option"] { background: #FFFFFF !important; color: #1E293B !important; }
 li[role="option"]:hover { background: rgba(108,99,255,0.08) !important; color: #1E293B !important; }
 [data-baseweb="tag"] { background: rgba(108,99,255,0.10) !important; border: 1px solid rgba(108,99,255,0.30) !important; }
 [data-testid="stSelectbox"] > div > div,
 [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child,
 [data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child {
-    background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; color: #1E293B !important;
+    background: rgba(255,255,255,0.8) !important; border: 1px solid #E2E8F0 !important; color: #1E293B !important; backdrop-filter: blur(12px) !important;
 }
-[data-testid="stNumberInput"] input { background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; color: #1E293B !important; }
-[data-testid="stExpander"] { background: #F8F9FB !important; border: 1px solid #E2E8F0 !important; }
+[data-testid="stNumberInput"] input { background: rgba(255,255,255,0.8) !important; border: 1px solid #E2E8F0 !important; color: #1E293B !important; }
+[data-testid="stExpander"] { background: rgba(255,255,255,0.7) !important; backdrop-filter: blur(12px) !important; border: 1px solid rgba(226, 232, 240, 0.8) !important; }
 [data-testid="stExpander"] summary { color: #334155 !important; }
 [data-testid="stExpander"] summary:hover { color: #1E293B !important; }
 [data-testid="stRadio"] label { color: #334155 !important; }
 [data-testid="stDataFrame"] { border: 1px solid #E2E8F0 !important; }
-table.ctbl th { background: #F1F2F6 !important; color: #64748B !important; border-bottom: 1px solid #E2E8F0 !important; }
-table.ctbl td { color: #334155 !important; border-top: 1px solid #F1F2F6 !important; }
-.ctbl tr:hover td { background: #F8F9FB !important; }
+table.ctbl th { background: rgba(241, 242, 246, 0.8) !important; color: #64748B !important; border-bottom: 1px solid #E2E8F0 !important; }
+table.ctbl td { color: #334155 !important; border-top: 1px solid rgba(241, 242, 246, 0.5) !important; }
+.ctbl tr:hover td { background: rgba(248, 249, 251, 0.8) !important; }
 .sb-label { color: #64748B !important; }
-.version-pill { background: #F1F2F6 !important; border-color: #E2E8F0 !important; color: #64748B !important; }
-.mcard { background: #F8F9FB !important; border: 1px solid #E2E8F0 !important; }
-.mcard:hover { border-color: #CBD5E1 !important; }
-.mcard-label, .mcard-unit, .mcard-sub { color: #64748B !important; }
-.mcard-value { color: #1E293B !important; }
-.policy-value { color: #1E293B !important; }
+.version-pill { background: rgba(241, 242, 246, 0.8) !important; border-color: #E2E8F0 !important; color: #64748B !important; }
 .pstage { color: #334155 !important; border-bottom: 1px solid #E2E8F0 !important; }
 .p-wait { color: #CBD5E1 !important; }
 .shdr { border-bottom: 1px solid #E2E8F0 !important; }
 .shdr-text h3 { color: #1E293B !important; }
 .shdr-text .ssub { color: #64748B !important; }
 .b-neu { color: #475569 !important; }
-/* Streamlit's own widget label/caption text uses a "faded" opacity formula
-   computed from config.toml's base="dark" setting — translucent white,
-   legible on a dark backdrop but near-invisible once we force a white
-   background here. Reset opacity and force dark text on these. */
+
+[data-baseweb="tooltip"] p,
+[data-baseweb="tooltip"] span,
+[data-baseweb="tooltip"] li,
+[data-baseweb="tooltip"] [data-testid="stMarkdownContainer"] p,
+[data-baseweb="tooltip"] [data-testid="stMarkdownContainer"] li,
+[data-baseweb="tooltip"] [data-testid="stMarkdownContainer"] span {
+    color: #F8FAFC !important;
+}
+
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
 [data-testid="stWidgetLabel"] p,
 [data-testid="stWidgetLabel"] label,
 [data-testid="stRadio"] label,
@@ -131,6 +177,41 @@ table.ctbl td { color: #334155 !important; border-top: 1px solid #F1F2F6 !import
     color: #64748B !important;
     opacity: 1 !important;
 }
+
+/* PREMIUM METRIC CARDS OVERRIDE */
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.3)) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+[data-testid="stMetric"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.06) !important;
+    border: 1px solid rgba(99, 102, 241, 0.4) !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #64748B !important;
+    font-weight: 700 !important;
+    margin-bottom: 4px !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 28px !important;
+    font-weight: 800 !important;
+    color: #1E293B !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1.1 !important;
+}
+[data-testid="stMetricDelta"] {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+}
 </style>""", unsafe_allow_html=True)
 
 
@@ -138,13 +219,13 @@ table.ctbl td { color: #334155 !important; border-top: 1px solid #F1F2F6 !import
 # ║  BRAND CONSTANTS                                                             ║
 # ╚â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-BRAND_COLORS: Dict[str, str] = ({
-    "primary":   "#6C63FF",
-    "secondary": "#7C3AED",
+BRAND_COLORS: Dict[str, str] = {
+    "primary":   "#10B981",
+    "secondary": "#059669",
     "success":   "#059669",
     "warning":   "#D97706",
     "error":     "#DC2626",
-    "info":      "#2563EB",
+    "info":      "#0284C7",
     "orange":    "#EA580C",
     "bg":        "#FFFFFF",
     "card":      "#F8F9FB",
@@ -152,21 +233,7 @@ BRAND_COLORS: Dict[str, str] = ({
     "muted":     "#64748B",
     "text":      "#1E293B",
     "subtle":    "#94A3B8",
-} if IS_LIGHT else {
-    "primary":   "#6C63FF",   # violet — main accent (DoWhy-inspired)
-    "secondary": "#A78BFA",   # light purple
-    "success":   "#10B981",   # emerald — ok / causal estimate
-    "warning":   "#F59E0B",   # amber — planted truth / warning
-    "error":     "#EF4444",   # red — confounding / danger
-    "info":      "#3B82F6",   # blue — informational
-    "orange":    "#F97316",   # orange
-    "bg":        "#0E1117",   # page background
-    "card":      "#161B27",   # card / sidebar background
-    "border":    "#2D3748",   # borders
-    "muted":     "#94A3B8",   # muted text
-    "text":      "#E2E8F0",   # main text
-    "subtle":    "#64748B",   # subtle / axis labels
-})
+}
 
 PRIMARY   = BRAND_COLORS["primary"]
 SECONDARY = BRAND_COLORS["secondary"]
@@ -193,19 +260,26 @@ _AGRAPH_ROLE_COLORS: Dict[str, str] = {
 
 # ── PLOTLY BASE LAYOUT (Plotly Chart Gallery dark pattern) ─────────────────────
 PLOTLY_LAYOUT: Dict[str, Any] = dict(
-    template="plotly_white" if IS_LIGHT else "plotly_dark",
-    paper_bgcolor=CARD,
-    plot_bgcolor=CARD,
+    template="plotly_white",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter, sans-serif", color=MUTED, size=12),
-    title_font=dict(size=15, color=TEXT, family="Inter, sans-serif"),
+    title_font=dict(size=16, color=TEXT, family="Inter, sans-serif"),
     margin=dict(l=20, r=20, t=50, b=20),
     legend=dict(
-        bgcolor="rgba(0,0,0,0)", bordercolor=BORDER, borderwidth=1,
-        font=dict(size=11, color=MUTED),
+        bgcolor="rgba(255,255,255,0.7)", bordercolor=BORDER, borderwidth=1,
+        font=dict(size=11, color=TEXT),
     ),
-    hoverlabel=dict(bgcolor="#1A2035", bordercolor=BORDER, font=dict(color=TEXT)),
-    xaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color=SUBTLE)),
-    yaxis=dict(gridcolor=BORDER, zeroline=False, tickfont=dict(color=SUBTLE)),
+    hoverlabel=dict(bgcolor="#1E293B", bordercolor="#475569", font=dict(color="#F8FAFC")),
+    # NOTE: when "title" is passed as a plain string (every chart in this file
+    # does `{**PLOTLY_LAYOUT.get("xaxis", {}), "title": "..."}`), Plotly falls
+    # back to its own faded default axis-title color instead of inheriting
+    # `font.color` above — it rendered as rgb(230,234,241), nearly invisible
+    # on the white background. title_font here fixes every chart at once.
+    xaxis=dict(gridcolor="#F1F5F9", zerolinecolor="#E2E8F0", tickfont=dict(color=SUBTLE),
+                title_font=dict(color=TEXT, size=13, family="Inter, sans-serif")),
+    yaxis=dict(gridcolor="#F1F5F9", zerolinecolor="#E2E8F0", tickfont=dict(color=SUBTLE),
+                title_font=dict(color=TEXT, size=13, family="Inter, sans-serif")),
 )
 
 _ABLATION_METRIC_KEYS: List[Tuple[str, str, str]] = [
@@ -749,12 +823,6 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    # ── APPEARANCE ─────────────────────────────────────────────────────────────
-    st.markdown('<p class="sb-label">🎨 &nbsp;Appearance</p>', unsafe_allow_html=True)
-    _light_toggle = st.toggle("Light mode", value=IS_LIGHT, key="theme_toggle_widget")
-    if _light_toggle != IS_LIGHT:
-        st.session_state["theme"] = "light" if _light_toggle else "dark"
-        st.rerun()
 
     # ── MIDDLE: Domain + Parameters ───────────────────────────────────────────
     st.markdown('<p class="sb-label">🌐 &nbsp;Analysis Domain</p>', unsafe_allow_html=True)
@@ -1102,12 +1170,12 @@ for _sk, _sl_tpl in _pipe_items:
     )
 
 hero_ph.markdown(
-    f'<div class="hero-section">'
-    f'<div class="hero-glow" style="top:-80px;right:-80px;width:280px;height:280px;'
+    f'<div class="hero-section" style="position:relative; overflow:hidden;">'
+    f'<div class="hero-glow" style="position:absolute;pointer-events:none;z-index:0;top:-80px;right:-80px;width:280px;height:280px;'
     f'background:radial-gradient(circle,{_glow1_rgba} 0%,transparent 70%);"></div>'
-    f'<div class="hero-glow" style="bottom:-60px;left:-60px;width:200px;height:200px;'
+    f'<div class="hero-glow" style="position:absolute;pointer-events:none;z-index:0;bottom:-60px;left:-60px;width:200px;height:200px;'
     f'background:radial-gradient(circle,{_glow2_rgba} 0%,transparent 70%);"></div>'
-    f'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">'
+    f'<div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;">'
     f'<div style="flex:1;">'
     f'<span class="{_badge_cls}" {_badge_inline}><span class="badge-dot"></span>&nbsp;{_domain_disp} · Live</span>'
     f'<h1 class="hero-title{_title_cls}">CausalOCPM</h1>'
@@ -1126,13 +1194,13 @@ hero_ph.markdown(
 
 # ── TAB LAYOUT ────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "Event Log",
-    "Causal Discovery",
-    "Structural Model",
-    "Policy Simulation",
-    "Case Attribution",
-    "Real Data: BPI 2019",
-    "Domain Comparison",
+    "📄 Event Log",
+    "🕸️ Causal Discovery",
+    "📐 Structural Model",
+    "🎮 Policy Simulation",
+    "🔍 Case Attribution",
+    "🏭 Real Data: BPI 2019",
+    "⚖️ Domain Comparison",
 ])
 
 
@@ -1173,7 +1241,7 @@ with tab1:
         c3.metric("Avg Delay", f"{df[outcome_var].mean():.2f}")
         c4.metric("Std Dev",   f"{df[outcome_var].std():.2f}")
 
-    # BUG-007: cast binary columns to int before display
+    # Prepare dataframe display (will be rendered in the stats column below)
     display_cols = cfg["numeric_vars"][:8]
     display_df   = df[display_cols].head(10).copy()
     for col in binary_vars:
@@ -1183,9 +1251,6 @@ with tab1:
     binary_in  = [c for c in display_df.columns if c in binary_vars]
     fmt = {c: "{:.3f}" for c in non_binary}
     fmt.update({c: "{:d}" for c in binary_in})
-    render_table(display_df, fmt)
-    st.caption("First 10 rows — uploaded data" if is_custom
-               else f"First 10 rows — seed={seed_int}, n={n_int:,}")
 
     st.divider()
 
@@ -1284,12 +1349,23 @@ with tab1:
             _sub_machine = "wards"    if domain == "healthcare" else "units"
             _sub_worker  = "clinicians" if domain == "healthcare" else "staff"
 
+            # Theme-aware canvas colors — this panel used to be hardcoded dark
+            # (#0D1117) regardless of theme, leaving a jarring black box on the
+            # light theme. Mirror the IS_LIGHT pattern used by the DAG animation.
+            _og_bg       = "#F8F9FB" if IS_LIGHT else "#0D1117"
+            _og_border   = "#E2E8F0" if IS_LIGHT else "rgba(255,255,255,0.08)"
+            _og_spill_bg = "rgba(15,23,42,0.04)"   if IS_LIGHT else "rgba(255,255,255,0.05)"
+            _og_spill_bd = "rgba(15,23,42,0.10)"   if IS_LIGHT else "rgba(255,255,255,0.1)"
+            _og_spill_tx = "rgba(15,23,42,0.45)"   if IS_LIGHT else "rgba(255,255,255,0.4)"
+            _og_spill_b  = "#0F172A" if IS_LIGHT else "#fff"
+
             _stc.html(f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box;}}
-html,body{{background:#0D1117;font-family:'Inter',-apple-system,sans-serif;overflow:hidden;max-width:100%;}}
-.wrap{{position:relative;width:640px;height:400px;margin:0 auto;overflow:hidden;}}
+html,body{{background:{_og_bg};font-family:'Inter',-apple-system,sans-serif;overflow:hidden;max-width:100%;}}
+.wrap{{position:relative;width:640px;height:400px;margin:0 auto;overflow:hidden;
+  border:1px solid {_og_border};border-radius:12px;}}
 canvas{{position:absolute;top:0;left:0;}}
 .node{{position:absolute;border-radius:50%;display:flex;flex-direction:column;
   align-items:center;justify-content:center;cursor:pointer;
@@ -1313,9 +1389,9 @@ canvas{{position:absolute;top:0;left:0;}}
 .btxt{{font-size:10px;font-weight:700;color:#10B981;letter-spacing:0.1em;text-transform:uppercase;}}
 .sbar{{position:absolute;bottom:8px;left:8px;right:8px;display:flex;
   justify-content:space-between;z-index:20;}}
-.spill{{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-  border-radius:20px;padding:3px 10px;font-size:10px;color:rgba(255,255,255,0.4);}}
-.spill b{{color:#fff;font-weight:700;}}
+.spill{{background:{_og_spill_bg};border:1px solid {_og_spill_bd};
+  border-radius:20px;padding:3px 10px;font-size:10px;color:{_og_spill_tx};}}
+.spill b{{color:{_og_spill_b};font-weight:700;}}
 </style></head><body>
 <div class="wrap">
   <div class="badge"><div class="bdot"></div><div class="btxt">Live Simulation</div></div>
@@ -1529,6 +1605,11 @@ loop();
                 unsafe_allow_html=True,
             )
 
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("📁 View Raw Data Preview", expanded=False):
+                st.markdown(f"<div style='margin-bottom:8px;'><span class='badge b-neu'>First 10 rows</span></div>", unsafe_allow_html=True)
+                render_table(display_df, fmt)
+
         # ── PART B: Order-flow Sankey ──────────────────────────────────────
         st.markdown(
             f'<div style="height:1px;background:{BORDER};margin:24px 0 16px;"></div>',
@@ -1536,9 +1617,9 @@ loop();
         )
         section_header(
             "3. Order Flow — Process to Outcome",
-            "Raw correlation view: how orders route through carriers and suppliers "
-            "to on-time vs delayed outcomes. See Tab 4 for the causal estimate "
-            "(confounders removed).",
+            "This chart displays the raw correlation flow of orders from carriers and suppliers to "
+            "their final outcomes. Note that this view does not account for confounding variables "
+            "(see Tab 4 for true causal estimates).",
             icon="🌊", tag="Correlation View", tag_color=WARNING,
         )
 
@@ -1558,12 +1639,12 @@ loop();
             _sk = go.Figure(go.Sankey(
                 arrangement="snap",
                 node=dict(
-                    pad=20, thickness=20,
+                    pad=30, thickness=24,
                     line=dict(color=BORDER, width=0.5),
                     label=["Express Carrier", "Standard Carrier",
                            "Supplier A", "Supplier B",
                            "✓ On Time", "✗ Delayed"],
-                    color=[INFO, SUBTLE, SUCCESS, WARNING, PRIMARY, ERROR],
+                    color=["#3B82F6", "#94A3B8", "#10B981", "#F59E0B", "#6C63FF", "#EF4444"],
                     x=[0.05, 0.05, 0.05, 0.05, 0.95, 0.95],
                     y=[0.10, 0.30, 0.60, 0.80, 0.28, 0.72],
                 ),
@@ -1573,18 +1654,21 @@ loop();
                     value=[_ex_o, _ex_d, _st_o, _st_d,
                            _sa_o, _sa_d, _sb_o, _sb_d],
                     color=[
-                        "rgba(59,130,246,0.25)",  "rgba(239,68,68,0.25)",
-                        "rgba(100,116,139,0.18)", "rgba(239,68,68,0.18)",
-                        "rgba(16,185,129,0.25)",  "rgba(239,68,68,0.25)",
-                        "rgba(245,158,11,0.25)",  "rgba(239,68,68,0.35)",
+                        "rgba(59,130,246,0.15)",  "rgba(239,68,68,0.15)",
+                        "rgba(148,163,184,0.15)", "rgba(239,68,68,0.15)",
+                        "rgba(16,185,129,0.15)",  "rgba(239,68,68,0.15)",
+                        "rgba(245,158,11,0.15)",  "rgba(239,68,68,0.25)",
                     ],
                 ),
             ))
             _sk_lay = dict(**PLOTLY_LAYOUT)
-            _sk_lay.update(title="", height=310, margin=dict(l=20, r=20, t=20, b=20))
+            _sk_lay.update(
+                title="", height=360, margin=dict(l=10, r=10, t=20, b=20),
+                font=dict(family="Inter", size=13, color="#1E293B")
+            )
             _sk.update_layout(**_sk_lay)
             try:
-                st.plotly_chart(_sk, use_container_width=True)
+                st.plotly_chart(_sk, use_container_width=True, theme=None, config={'displayModeBar': False})
             except Exception as _e:
                 st.warning(f"Sankey could not render: {_e}")
 
@@ -1603,11 +1687,11 @@ loop();
             _sk = go.Figure(go.Sankey(
                 arrangement="snap",
                 node=dict(
-                    pad=25, thickness=20,
+                    pad=30, thickness=24,
                     line=dict(color=BORDER, width=0.5),
                     label=[_t_lbl, f"No {_t_lbl}",
                            f"✓ {_out_lbl}", f"✗ {_del_lbl}"],
-                    color=[SUCCESS, SUBTLE, PRIMARY, ERROR],
+                    color=["#10B981", "#94A3B8", "#6C63FF", "#EF4444"],
                     x=[0.05, 0.05, 0.95, 0.95],
                     y=[0.25, 0.75, 0.25, 0.75],
                 ),
@@ -1615,16 +1699,19 @@ loop();
                     source=[0, 0, 1, 1], target=[2, 3, 2, 3],
                     value=[_to, _td, _co, _cd],
                     color=[
-                        "rgba(16,185,129,0.25)", "rgba(239,68,68,0.25)",
-                        "rgba(100,116,139,0.18)", "rgba(239,68,68,0.25)",
+                        "rgba(16,185,129,0.15)", "rgba(239,68,68,0.15)",
+                        "rgba(148,163,184,0.15)", "rgba(239,68,68,0.15)",
                     ],
                 ),
             ))
             _sk_lay = dict(**PLOTLY_LAYOUT)
-            _sk_lay.update(title="", height=290, margin=dict(l=20, r=20, t=20, b=20))
+            _sk_lay.update(
+                title="", height=320, margin=dict(l=10, r=10, t=20, b=20),
+                font=dict(family="Inter", size=13, color="#1E293B")
+            )
             _sk.update_layout(**_sk_lay)
             try:
-                st.plotly_chart(_sk, use_container_width=True)
+                st.plotly_chart(_sk, use_container_width=True, theme=None, config={'displayModeBar': False})
             except Exception as _e:
                 st.warning(f"Sankey could not render: {_e}")
 
@@ -1669,33 +1756,6 @@ with tab2:
         icon="🔗", tag="PC Algorithm · agraph", tag_color=SECONDARY,
     )
 
-    if is_custom:
-        st.markdown(confidence_badge(custom_confidence), unsafe_allow_html=True)
-        st.caption("No ground-truth structure exists for uploaded data, so precision / recall "
-                   "against a known DAG are not computed — the edges below are the discovered structure.")
-        dm1, dm2, dm3 = st.columns(3)
-        dm1.metric("Discovered Edges",  dag.number_of_edges())
-        dm2.metric("Variables",         len(cfg["numeric_vars"]))
-        dm3.metric("Binary Treatments", len(cfg["treatment_options"]))
-    else:
-        if n_int < 1000:
-            st.warning(
-                f"n={n_int:,} events — small samples reduce DAG discovery quality. "
-                "F1 scores below 0.75 are expected at this scale. Use n≥1,000 for reliable results.",
-                icon="⚠️",
-            )
-        elif dag_metrics.get("f1_score", 1) < 0.75:
-            st.warning(
-                f"F1={dag_metrics['f1_score']:.3f} — DAG quality is reduced at this seed/n combination. "
-                "Try increasing event count or changing the seed.",
-                icon="⚠️",
-            )
-
-        dm1, dm2, dm3, dm4 = st.columns(4)
-        dm1.metric("Discovered Edges", dag.number_of_edges())
-        dm2.metric("Precision",        f"{dag_metrics.get('precision', 0):.3f}")
-        dm3.metric("Recall",           f"{dag_metrics.get('recall', 0):.3f}")
-        dm4.metric("F1 Score",         f"{dag_metrics.get('f1_score', 0):.3f}")
 
     # Compute confounding path edges (BUG-006)
     confounder_set: set = set()
@@ -1744,31 +1804,34 @@ with tab2:
         _ROLE_RADIUS = {"outcome":46,"treatment":38,"confounder":40,"mediator":33}
 
         # ── Layout ──────────────────────────────────────────────────────
-        _CW, _CH = 760, 440
+        _CW, _CH = 900, 480
         _bkt: Dict[str, list] = {k:[] for k in ("confounder","treatment","mediator","outcome")}
         for _n, _r in _node_role.items():
             _bkt[_r].append(_n)
 
-        def _vcenter(nodes, cy=220, gap=120):
+        def _vcenter(nodes, cy=240, gap=130):
             n = len(nodes)
             return [int(cy + (i-(n-1)/2)*gap) for i in range(n)]
 
         _pos: Dict[str, Dict] = {}
         for _i, _nd in enumerate(_bkt["confounder"]):
-            _pos[_nd] = {"x": 90,  "y": _vcenter(_bkt["confounder"])[_i]}
+            _pos[_nd] = {"x": 100, "y": _vcenter(_bkt["confounder"])[_i]}
         for _i, _nd in enumerate(_bkt["treatment"]):
-            _pos[_nd] = {"x": 245, "y": _vcenter(_bkt["treatment"])[_i]}
+            _pos[_nd] = {"x": 260, "y": _vcenter(_bkt["treatment"])[_i]}
         for _i, _nd in enumerate(_bkt["outcome"]):
-            _pos[_nd] = {"x": 680, "y": _vcenter(_bkt["outcome"])[_i]}
+            _pos[_nd] = {"x": 800, "y": _vcenter(_bkt["outcome"])[_i]}
 
         _meds    = _bkt["mediator"]
-        _len_med = len(_meds) + 1
-        _row_h   = min(120, max(80, (_CH-120) // max(_len_med//2, 1)))
-        for _i, _nd in enumerate(_meds):
-            _pos[_nd] = {
-                "x": 415 + (_i % 2) * 95,
-                "y": max(70, min(_CH-60, 80 + (_i//2) * _row_h)),
-            }
+        _meds_left = [_nd for _i, _nd in enumerate(_meds) if _i % 2 == 0]
+        _meds_right = [_nd for _i, _nd in enumerate(_meds) if _i % 2 == 1]
+        
+        _y_left = _vcenter(_meds_left, cy=_CH//2, gap=130)
+        _y_right = _vcenter(_meds_right, cy=_CH//2, gap=130)
+        
+        for _i, _nd in enumerate(_meds_left):
+            _pos[_nd] = {"x": 440, "y": _y_left[_i]}
+        for _i, _nd in enumerate(_meds_right):
+            _pos[_nd] = {"x": 620, "y": _y_right[_i]}
 
         # ── Node label (balanced 2-line) ─────────────────────────────────
         def _nlabel(name):
@@ -1836,14 +1899,18 @@ with tab2:
         _emeta_json = _json.dumps(_edge_meta)
         _nids_json  = _json.dumps([str(n) for n in dag.nodes()])
 
+        _bg_color = "#F8F9FB" if IS_LIGHT else "#0A0E17"
+        _border_color = "#E2E8F0" if IS_LIGHT else "#1A1F2E"
+        _ectr_bg = "rgba(255,255,255,0.9)" if IS_LIGHT else "rgba(10,14,23,0.9)"
+
         _stc.html(f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box;}}
-html,body{{background:#0A0E17;font-family:-apple-system,'Inter',sans-serif;overflow:hidden;max-width:100%;}}
+html,body{{background:{_bg_color};font-family:-apple-system,'Inter',sans-serif;overflow:hidden;max-width:100%;}}
 .wrap{{
-  position:relative;width:760px;height:440px;margin:0 auto;
-  background:#0A0E17;border:1px solid #1A1F2E;border-radius:12px;overflow:hidden;
+  position:relative;width:900px;height:480px;margin:0 auto;
+  background:{_bg_color};border:1px solid {_border_color};border-radius:12px;overflow:hidden;
 }}
 svg{{position:absolute;top:0;left:0;z-index:1;overflow:visible;}}
 #nh{{position:absolute;inset:0;z-index:10;}}
@@ -1894,7 +1961,7 @@ svg{{position:absolute;top:0;left:0;z-index:1;overflow:visible;}}
 .adot.ok{{background:#10B981;}}
 .atxt{{font-size:11px;font-weight:600;color:#818CF8;letter-spacing:0.04em;}}
 .ectr{{
-  background:rgba(10,14,23,0.9);border:1px solid #1A1F2E;
+  background:{_ectr_bg};border:1px solid {_border_color};
   border-radius:6px;padding:4px 12px;font-size:11px;color:#4B5563;
 }}
 .ectr b{{color:#6366F1;font-weight:700;}}
@@ -1954,7 +2021,7 @@ svg{{position:absolute;top:0;left:0;z-index:1;overflow:visible;}}
   </div>
 
   <!-- SVG layer: pre-computed paths, no sparks group -->
-  <svg id="dag-svg" width="760" height="440">
+  <svg id="dag-svg" width="900" height="480">
     <defs>
       <marker id="am-n" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
         <polygon points="0 0, 8 3, 0 6" fill="#6366F1" fill-opacity="0.8"/>
@@ -2160,7 +2227,7 @@ window.addEventListener('mouseup', () => {{
 }});
 
 setTimeout(startAnim, 300);
-</script></body></html>""", height=460)
+</script></body></html>""", height=500)
 
         # Static legend strip below the animation
         _dag_legend_items = [
@@ -2184,67 +2251,96 @@ setTimeout(startAnim, 300);
             unsafe_allow_html=True,
         )
 
-    # 2. Ablation Study ────────────────────────────────────────────────────────
+    # 2. Metrics & Ablation Study ────────────────────────────────────────────────────────
     st.divider()
-    if is_custom:
+    t2_col_metrics, t2_col_ablation = st.columns([1, 1])
+
+    with t2_col_metrics:
         section_header(
-            "2. Discovered Structure",
-            "Ablation against planted ground truth is not available for uploaded data.",
-            icon="📐", tag="Custom Data", tag_color=CYAN,
+            "2. Discovery Metrics",
+            "Performance of the PC algorithm against the underlying data structure.",
+            icon="📊", tag="Performance", tag_color=PRIMARY,
         )
-        insight_card(
-            "Why No Ablation Here",
-            "The domain-knowledge ablation measures F1 improvement against a known planted "
-            "DAG. Uploaded data has no ground-truth structure, so the discovered DAG above is "
-            f"presented directly. Reliability is reflected in the confidence score "
-            f"({custom_confidence}%), driven by data size and quality.",
-            "info",
-        )
-    elif ablation:
-        wdk  = ablation.get("with_domain_knowledge",    {})
-        wodk = ablation.get("without_domain_knowledge", {})
-        imp  = ablation.get("improvement",              {})
-
-        tbl_rows = ""
-        for metric_lbl, key, gain_key in _ABLATION_METRIC_KEYS:
-            v_wo     = wodk.get(key, 0)
-            v_wi     = wdk.get(key, 0)
-            gain_val = imp.get(gain_key, v_wi - v_wo)
-            gc       = SUCCESS if gain_val >= 0 else ERROR
-            sign     = "+" if gain_val >= 0 else ""
-            tbl_rows += (
-                f"<tr><td><b>{metric_lbl}</b></td>"
-                f'<td class="ctbl-mono">{v_wo:.3f}</td>'
-                f'<td class="ctbl-mono" style="color:{SUCCESS};">{v_wi:.3f}</td>'
-                f'<td class="ctbl-mono" style="color:{gc};">{sign}{gain_val:.3f} pp</td></tr>'
-            )
-
-        st.markdown(
-            f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
-            f'<table class="ctbl"><thead><tr>'
-            f'<th>Metric</th>'
-            f'<th>Without Domain Knowledge</th>'
-            f'<th style="color:{SUCCESS};">With Domain Knowledge</th>'
-            f'<th>Improvement (pp)</th>'
-            f"</tr></thead><tbody>{tbl_rows}</tbody></table></div>",
-            unsafe_allow_html=True,
-        )
-
-        f1_gain = imp.get("f1_gain", 0)
-        if f1_gain > 0:
-            insight_card(
-                "Domain Knowledge Impact",
-                f"Domain knowledge integration yields a {f1_gain:+.3f} pp F1 improvement, "
-                "empirically validating this design choice.",
-                "success",
-            )
+        if is_custom:
+            st.markdown(confidence_badge(custom_confidence), unsafe_allow_html=True)
+            st.caption("No ground-truth structure exists for uploaded data, so precision / recall "
+                       "against a known DAG are not computed.")
+            dm1, dm2, dm3 = st.columns(3)
+            dm1.metric("Edges",  dag.number_of_edges())
+            dm2.metric("Vars",   len(cfg["numeric_vars"]))
+            dm3.metric("Treatments", len(cfg["treatment_options"]))
         else:
+            if n_int < 1000:
+                st.warning(f"n={n_int:,} events — small samples reduce DAG discovery quality.", icon="⚠️")
+            elif dag_metrics.get("f1_score", 1) < 0.75:
+                st.warning(f"F1={dag_metrics['f1_score']:.3f} — DAG quality reduced. Try increasing n.", icon="⚠️")
+            dm1, dm2 = st.columns(2)
+            dm3, dm4 = st.columns(2)
+            dm1.metric("Discovered Edges", dag.number_of_edges())
+            dm2.metric("Precision",        f"{dag_metrics.get('precision', 0):.3f}")
+            dm3.metric("Recall",           f"{dag_metrics.get('recall', 0):.3f}")
+            dm4.metric("F1 Score",         f"{dag_metrics.get('f1_score', 0):.3f}")
+
+    with t2_col_ablation:
+        if is_custom:
+            section_header(
+                "2. Discovered Structure",
+                "Ablation against planted ground truth is not available for uploaded data.",
+                icon="📐", tag="Custom Data", tag_color=CYAN,
+            )
             insight_card(
-                "High Baseline Performance",
-                f"PC algorithm achieves F1={wdk.get('f1_score', 0):.3f} alone. "
-                "Domain knowledge maintains perfect recall and removes spurious edges.",
+                "Why No Ablation Here",
+                "The domain-knowledge ablation measures F1 improvement against a known planted "
+                "DAG. Uploaded data has no ground-truth structure, so the discovered DAG above is "
+                f"presented directly. Reliability is reflected in the confidence score "
+                f"({custom_confidence}%), driven by data size and quality.",
                 "info",
             )
+        elif ablation:
+            wdk  = ablation.get("with_domain_knowledge",    {})
+            wodk = ablation.get("without_domain_knowledge", {})
+            imp  = ablation.get("improvement",              {})
+
+            tbl_rows = ""
+            for metric_lbl, key, gain_key in _ABLATION_METRIC_KEYS:
+                v_wo     = wodk.get(key, 0)
+                v_wi     = wdk.get(key, 0)
+                gain_val = imp.get(gain_key, v_wi - v_wo)
+                gc       = SUCCESS if gain_val >= 0 else ERROR
+                sign     = "+" if gain_val >= 0 else ""
+                tbl_rows += (
+                    f"<tr><td><b>{metric_lbl}</b></td>"
+                    f'<td class="ctbl-mono">{v_wo:.3f}</td>'
+                    f'<td class="ctbl-mono" style="color:{SUCCESS};">{v_wi:.3f}</td>'
+                    f'<td class="ctbl-mono" style="color:{gc};">{sign}{gain_val:.3f} pp</td></tr>'
+                )
+
+            st.markdown(
+                f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+                f'<table class="ctbl"><thead><tr>'
+                f'<th>Metric</th>'
+                f'<th>Without Domain Knowledge</th>'
+                f'<th style="color:{SUCCESS};">With Domain Knowledge</th>'
+                f'<th>Improvement (pp)</th>'
+                f"</tr></thead><tbody>{tbl_rows}</tbody></table></div>",
+                unsafe_allow_html=True,
+            )
+
+            f1_gain = imp.get("f1_gain", 0)
+            if f1_gain > 0:
+                insight_card(
+                    "Domain Knowledge Impact",
+                    f"Domain knowledge integration yields a {f1_gain:+.3f} pp F1 improvement, "
+                    "empirically validating this design choice.",
+                    "success",
+                )
+            else:
+                insight_card(
+                    "High Baseline Performance",
+                    f"PC algorithm achieves F1={wdk.get('f1_score', 0):.3f} alone. "
+                    "Domain knowledge maintains perfect recall and removes spurious edges.",
+                    "info",
+                )
 
 
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2255,127 +2351,130 @@ with tab3:
         accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))
 
     # 1. Mixed Model Architecture ──────────────────────────────────────────────
-    section_header(
-        "1. Structural Equations — Mixed Model SCM",
-        "Binary → LogisticRegression · Outcome → GradientBoosting · Continuous → LinearRegression",
-        icon="⚙", tag="Mixed SCM", tag_color=WARNING,
-    )
+    t3_col_eq = st.container()
+    t3_col_coef = st.container()
 
-    badge_parts = []
-    for node, eq in scm.items():
-        mt = eq["model_type"]
-        ms = f"{eq['metric_label']}={eq['r2_score']:.3f}"
-        badge_parts.append(
-            f'<div style="display:inline-flex;align-items:center;gap:6px;'
-            f'background:{CARD};border:1px solid {BORDER};border-radius:6px;'
-            f'padding:6px 12px;margin:4px;">'
-            f"{scm_badge_html(mt, node, ms)}</div>"
+    with t3_col_eq:
+        section_header(
+            "1. Structural Equations — Mixed Model SCM",
+            "Binary → LogisticRegression · Outcome → GradientBoosting · Continuous → LinearRegression",
+            icon="⚙", tag="Mixed SCM", tag_color=WARNING,
         )
-    st.markdown(
-        '<div class="scm-badge-row">' + "".join(badge_parts) + "</div>",
-        unsafe_allow_html=True,
-    )
 
-    # 2. Coefficient Recovery ──────────────────────────────────────────────────
-    st.divider()
-    section_header(
-        "2. Structural Coefficients" if is_custom else "2. Structural Coefficient Recovery",
-        ("Estimated structural effect per edge. GBR entries show signed SHAP slopes; "
-         "no planted ground truth exists for uploaded data."
-         if is_custom else
-         "Estimated vs planted coefficients. GBR entries show signed mean SHAP values. "
-         "Sign Error = opposite sign; High Error = >30% relative deviation."),
-        icon="📊", tag="Estimated" if is_custom else "Validation",
-        tag_color=CYAN if is_custom else PRIMARY,
-    )
-
-    if not coefs.empty:
-        tbl_rows = ""
-        chart_rows = []
-        for _, row in coefs.iterrows():
-            edge  = f"{row['parent']} → {row['child']}"
-            est_v = row["estimated_value"]
-            gt_v  = row.get("ground_truth_value", np.nan)
-            ae_v  = row.get("abs_error", np.nan)
-            pct_v = row.get("pct_error", np.nan)
-            est_str = f"{est_v:+.4f}" if pd.notna(est_v) else "—"
-            gt_str  = f"{gt_v:+.4f}" if pd.notna(gt_v)  else "—"
-            ae_str  = f"{ae_v:.4f}"  if pd.notna(ae_v)  else "—"
-            pct_str = f"{pct_v:.1%}" if pd.notna(pct_v) else "—"
-            stat    = status_badge_html(row.get("status", "No Comparison"))
-            mt      = row["model_type"]
-            mdl_cls = {"logistic": "b-blue", "gradient_boosting": "b-amber"}.get(mt, "b-ok")
-            mdl_str = f'<span class="badge {mdl_cls}">{mt}</span>'
-            fit_str = f"{row.get('metric_label','R²')}={row.get('metric_value', 0):.3f}"
-            row_sty = 'style="background:rgba(239,68,68,0.04);"' if row.get("status") == "Sign Error" else ""
-            tbl_rows += (
-                f"<tr {row_sty}>"
-                f'<td class="ctbl-mono">{edge}</td>'
-                f'<td class="ctbl-mono">{est_str}</td>'
-                f'<td class="ctbl-mono">{gt_str}</td>'
-                f'<td class="ctbl-mono">{ae_str}</td>'
-                f'<td class="ctbl-mono" style="color:{MUTED};">{pct_str}</td>'
-                f"<td>{stat}</td><td>{mdl_str}</td>"
-                f'<td class="ctbl-mono" style="color:{MUTED};">{fit_str}</td></tr>'
+        badge_parts = []
+        for node, eq in scm.items():
+            mt = eq["model_type"]
+            ms = f"{eq['metric_label']}={eq['r2_score']:.3f}"
+            badge_parts.append(
+                f'<div style="display:inline-flex;align-items:center;gap:6px;'
+                f'background:{CARD};border:1px solid {BORDER};border-radius:6px;'
+                f'padding:6px 12px;margin:4px;">'
+                f"{scm_badge_html(mt, node, ms)}</div>"
             )
-            if pd.notna(gt_v) and pd.notna(est_v):
-                chart_rows.append(row)
-
         st.markdown(
-            f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
-            f'<table class="ctbl"><thead><tr>'
-            f"<th>Edge (Parent → Child)</th><th>Effect Estimate</th><th>Ground Truth</th>"
-            f"<th>Abs Error</th><th>% Error</th><th>Status</th><th>Model</th><th>Fit</th>"
-            f"</tr></thead><tbody>{tbl_rows}</tbody></table></div>",
+            '<div class="scm-badge-row">' + "".join(badge_parts) + "</div>",
             unsafe_allow_html=True,
         )
-        st.caption("* GradientBoosting nodes report the signed SHAP slope on each parent "
-                   "(binary: E[SHAP|x=1]−E[SHAP|x=0]), already in outcome units. "
-                   "Linear nodes report regression coefficients.")
 
-        if chart_rows:
-            chart_df = pd.DataFrame(chart_rows)
-            edge_labels = chart_df["parent"] + " → " + chart_df["child"]
-            fig_coef = go.Figure()
-            fig_coef.add_trace(go.Bar(
-                name="Estimated (Signed SHAP)", x=edge_labels,
-                y=chart_df["estimated_value"],
-                marker_color=PRIMARY, opacity=0.88,
-            ))
-            fig_coef.add_trace(go.Bar(
-                name="Ground Truth (Planted)", x=edge_labels,
-                y=chart_df["ground_truth_value"],
-                marker_color=WARNING, opacity=0.72,
-            ))
-            _cl = dict(**PLOTLY_LAYOUT)
-            _cl.update(dict(
-                barmode="group",
-                title="Structural Coefficient Recovery — Estimated vs Planted",
-                height=380,
-                xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "tickangle": -30,
-                       "title": "Causal Edge"},
-                yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": "Coefficient Value"},
-            ))
-            fig_coef.update_layout(**_cl)
-            try:
-                st.plotly_chart(fig_coef, use_container_width=True)
-            except Exception as _e:
-                st.error(f"Chart error: {_e}")
+    with t3_col_coef:
+        section_header(
+            "2. Structural Coefficients" if is_custom else "2. Structural Coefficient Recovery",
+            ("Estimated structural effect per edge. GBR entries show signed SHAP slopes; "
+             "no planted ground truth exists for uploaded data."
+             if is_custom else
+             "Estimated vs planted coefficients. GBR entries show signed mean SHAP values. "
+             "Sign Error = opposite sign; High Error = >30% relative deviation."),
+            icon="📊", tag="Estimated" if is_custom else "Validation",
+            tag_color=CYAN if is_custom else PRIMARY,
+        )
 
-    # 3. Equation Fit Quality ──────────────────────────────────────────────────
-    st.divider()
-    section_header("3. Equation Fit Quality",
-                   "AUC for binary nodes; R² for continuous and outcome nodes.", icon="📏")
-    eq_rows = [
-        {"Node": node, "Model Type": eq["model_type"],
-         "Metric": eq["metric_label"], "Value": f"{eq['r2_score']:.4f}"}
-        for node, eq in scm.items()
-    ]
-    if eq_rows:
-        render_table(pd.DataFrame(eq_rows))
+        if not coefs.empty:
+            tbl_rows = ""
+            chart_rows = []
+            for _, row in coefs.iterrows():
+                edge  = f"{row['parent']} → {row['child']}"
+                est_v = row["estimated_value"]
+                gt_v  = row.get("ground_truth_value", np.nan)
+                ae_v  = row.get("abs_error", np.nan)
+                pct_v = row.get("pct_error", np.nan)
+                est_str = f"{est_v:+.4f}" if pd.notna(est_v) else "—"
+                gt_str  = f"{gt_v:+.4f}" if pd.notna(gt_v)  else "—"
+                ae_str  = f"{ae_v:.4f}"  if pd.notna(ae_v)  else "—"
+                pct_str = f"{pct_v:.1%}" if pd.notna(pct_v) else "—"
+                stat    = status_badge_html(row.get("status", "No Comparison"))
+                mt      = row["model_type"]
+                mdl_cls = {"logistic": "b-blue", "gradient_boosting": "b-amber"}.get(mt, "b-ok")
+                mdl_str = f'<span class="badge {mdl_cls}">{mt}</span>'
+                fit_str = f"{row.get('metric_label','R²')}={row.get('metric_value', 0):.3f}"
+                row_sty = 'style="background:rgba(239,68,68,0.04);"' if row.get("status") == "Sign Error" else ""
+                tbl_rows += (
+                    f"<tr {row_sty}>"
+                    f'<td class="ctbl-mono">{edge}</td>'
+                    f'<td class="ctbl-mono">{est_str}</td>'
+                    f'<td class="ctbl-mono">{gt_str}</td>'
+                    f'<td class="ctbl-mono">{ae_str}</td>'
+                    f'<td class="ctbl-mono" style="color:{MUTED};">{pct_str}</td>'
+                    f"<td>{stat}</td><td>{mdl_str}</td>"
+                    f'<td class="ctbl-mono" style="color:{MUTED};">{fit_str}</td></tr>'
+                )
+                if pd.notna(gt_v) and pd.notna(est_v):
+                    chart_rows.append(row)
+
+            st.markdown(
+                f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">'
+                f'<table class="ctbl"><thead><tr>'
+                f"<th>Edge (Parent → Child)</th><th>Effect Estimate</th><th>Ground Truth</th>"
+                f"<th>Abs Error</th><th>% Error</th><th>Status</th><th>Model</th><th>Fit</th>"
+                f"</tr></thead><tbody>{tbl_rows}</tbody></table></div>",
+                unsafe_allow_html=True,
+            )
+            st.caption("* GradientBoosting nodes report the signed SHAP slope on each parent "
+                       "(binary: E[SHAP|x=1]−E[SHAP|x=0]), already in outcome units. "
+                       "Linear nodes report regression coefficients.")
+
+            if chart_rows:
+                chart_df = pd.DataFrame(chart_rows)
+                edge_labels = chart_df["parent"] + " → " + chart_df["child"]
+                fig_coef = go.Figure()
+                fig_coef.add_trace(go.Bar(
+                    name="Estimated (Signed SHAP)", x=edge_labels,
+                    y=chart_df["estimated_value"],
+                    marker_color=PRIMARY, opacity=0.88,
+                ))
+                fig_coef.add_trace(go.Bar(
+                    name="Ground Truth (Planted)", x=edge_labels,
+                    y=chart_df["ground_truth_value"],
+                    marker_color=WARNING, opacity=0.72,
+                ))
+                _cl = dict(**PLOTLY_LAYOUT)
+                _cl.update(dict(
+                    barmode="group",
+                    title="Structural Coefficient Recovery — Estimated vs Planted",
+                    height=380,
+                    xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "tickangle": -30,
+                           "title": "Causal Edge"},
+                    yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": "Coefficient Value"},
+                ))
+                fig_coef.update_layout(**_cl)
+                try:
+                    st.plotly_chart(fig_coef, use_container_width=True, theme=None, config={'displayModeBar': False})
+                except Exception as _e:
+                    st.error(f"Chart error: {_e}")
+
+        # 3. Equation Fit Quality ──────────────────────────────────────────────────
+        st.divider()
+        section_header("3. Equation Fit Quality",
+                       "AUC for binary nodes; R² for continuous and outcome nodes.", icon="📏")
+        eq_rows = [
+            {"Node": node, "Model Type": eq["model_type"],
+             "Metric": eq["metric_label"], "Value": f"{eq['r2_score']:.4f}"}
+            for node, eq in scm.items()
+        ]
+        if eq_rows:
+            render_table(pd.DataFrame(eq_rows))
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TAB 4 — POLICY SIMULATION
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tab4:
@@ -2388,56 +2487,60 @@ with tab4:
     treatment_options = cfg["treatment_options"]
 
     # 1. Setup ─────────────────────────────────────────────────────────────────
-    section_header(
-        "1. Policy Intervention Selection",
-        "Choose a treatment variable. The causal effect is estimated via backdoor adjustment "
-        "across all confounders identified in the learned DAG.",
-        icon="🎯", tag="Do-Operator", tag_color=PRIMARY,
-    )
+    t4_col_ctrl = st.container()
+    t4_col_viz = st.container()
 
-    if is_custom:
-        accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))
-
-    if not treatment_options:
-        insight_card(
-            "No Binary Treatment Variable",
-            "Policy simulation intervenes on a 0/1 treatment column, but your uploaded data "
-            "has no binary variables. Causal discovery (Tab 2), the structural model (Tab 3), "
-            "and case attribution (Tab 5) still run on your data.",
-            "warning",
-        )
-        selected_treatment = None
-    else:
-        selected_treatment = st.selectbox(
-            "Policy Intervention",
-            options=list(treatment_options.keys()),
-            format_func=lambda k: treatment_options[k],
-            key="treatment_select",
+    with t4_col_ctrl:
+        section_header(
+            "1. Policy Intervention Selection",
+            "Choose a treatment variable. The causal effect is estimated via backdoor adjustment "
+            "across all confounders identified in the learned DAG.",
+            icon="🎯", tag="Do-Operator", tag_color=PRIMARY,
         )
 
-    if "policy_cache" not in st.session_state:
-        st.session_state["policy_cache"] = {}
+        if is_custom:
+            accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))
 
-    cache_key = None
-    if selected_treatment is not None:
-        cache_key = f"{domain}_{selected_treatment}_{seed_int}_{n_int}"
-        if cache_key not in st.session_state["policy_cache"]:
-            true_val_for_this = (true_effect_main
-                                 if selected_treatment == cfg["treatment_var"] else None)
-            with st.spinner("Computing causal effect via backdoor adjustment…"):
-                result, err = _run_with_timeout(
-                    compare_effects,
-                    args=(df, dag, selected_treatment, outcome_var, numeric_vars, true_val_for_this),
-                    timeout=90,
-                )
-            if err:
-                st.error(f"Causal effect computation failed: {err}")
-                st.info("Reduce the Event Count slider (try 1,000–1,500) and click Regenerate Pipeline.")
-            else:
-                st.session_state["policy_cache"][cache_key] = result
+        if not treatment_options:
+            insight_card(
+                "No Binary Treatment Variable",
+                "Policy simulation intervenes on a 0/1 treatment column, but your uploaded data "
+                "has no binary variables. Causal discovery (Tab 2), the structural model (Tab 3), "
+                "and case attribution (Tab 5) still run on your data.",
+                "warning",
+            )
+            selected_treatment = None
+        else:
+            selected_treatment = st.selectbox(
+                "Policy Intervention",
+                options=list(treatment_options.keys()),
+                format_func=lambda k: treatment_options[k],
+                key="treatment_select",
+            )
 
-    _sim_result = (st.session_state["policy_cache"].get(cache_key)
-                   if cache_key is not None else None)
+        if "policy_cache" not in st.session_state:
+            st.session_state["policy_cache"] = {}
+
+        cache_key = None
+        if selected_treatment is not None:
+            cache_key = f"{domain}_{selected_treatment}_{seed_int}_{n_int}"
+            if cache_key not in st.session_state["policy_cache"]:
+                true_val_for_this = (true_effect_main
+                                     if selected_treatment == cfg["treatment_var"] else None)
+                with st.spinner("Computing causal effect via backdoor adjustment…"):
+                    result, err = _run_with_timeout(
+                        compare_effects,
+                        args=(df, dag, selected_treatment, outcome_var, numeric_vars, true_val_for_this),
+                        timeout=90,
+                    )
+                if err:
+                    st.error(f"Causal effect computation failed: {err}")
+                    st.info("Reduce the Event Count slider (try 1,000–1,500) and click Regenerate Pipeline.")
+                else:
+                    st.session_state["policy_cache"][cache_key] = result
+
+        _sim_result = (st.session_state["policy_cache"].get(cache_key)
+                       if cache_key is not None else None)
     if _sim_result is not None:
         result     = _sim_result
         naive_val  = result["naive"]
@@ -2450,313 +2553,326 @@ with tab4:
         sens       = result["sensitivity"]
 
         # 2. Effect Estimates ──────────────────────────────────────────────────────
-        section_header("2. Effect Estimation — Correlation vs Causal", icon="⚖")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(
-                _policy_card_html(
-                    "Correlation-Based (Confounded)",
-                    f"{naive_val:+.2f}",
-                    f"{outcome_label}  ·  Observed group difference",
-                    ERROR,
-                ),
-                unsafe_allow_html=True,
-            )
-        with col2:
-            st.markdown(
-                _policy_card_html(
-                    "Causal — Backdoor Adjusted",
-                    f"{causal_val:+.2f}",
-                    f"95% CI: [{ci_low:.2f}, {ci_high:.2f}]",
-                    SUCCESS,
-                ),
-                unsafe_allow_html=True,
-            )
-        with col3:
-            if gt_val is not None:
+        with t4_col_viz:
+            section_header("2. Effect Estimation — Correlation vs Causal", icon="⚖")
+            col1, col2, col3 = st.columns(3)
+            with col1:
                 st.markdown(
                     _policy_card_html(
-                        "Planted Structure (Validation)",
-                        f"{gt_val:+.2f}",
-                        "Known coefficient — not used in estimation",
-                        WARNING,
+                        "Correlation-Based (Confounded)",
+                        f"{naive_val:+.2f}",
+                        f"{outcome_label}  ·  Observed group difference",
+                        ERROR,
                     ),
                     unsafe_allow_html=True,
                 )
-            else:
+            with col2:
                 st.markdown(
                     _policy_card_html(
-                        "Planted Structure",
-                        "—",
-                        "No ground truth for this treatment",
-                        MUTED,
+                        "Causal — Backdoor Adjusted",
+                        f"{causal_val:+.2f}",
+                        f"95% CI: [{ci_low:.2f}, {ci_high:.2f}]",
+                        SUCCESS,
                     ),
                     unsafe_allow_html=True,
                 )
+            with col3:
+                if gt_val is not None:
+                    st.markdown(
+                        _policy_card_html(
+                            "Planted Structure (Validation)",
+                            f"{gt_val:+.2f}",
+                            "Known coefficient — not used in estimation",
+                            WARNING,
+                        ),
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        _policy_card_html(
+                            "Planted Structure",
+                            "—",
+                            "No ground truth for this treatment",
+                            MUTED,
+                        ),
+                    )
     
-        st.markdown("<br>", unsafe_allow_html=True)
-        bc1, bc2, bc3 = st.columns(3)
-        bc1.metric("Confounding Bias",       f"{gap:.3f} days")
-        bc2.metric("Bias as % of Observed",  f"{gap_pct:.1f}%")
-        bc3.metric("95% CI Width",           f"{(ci_high - ci_low):.3f} days")
+            st.markdown("<br>", unsafe_allow_html=True)
+            bc1, bc2, bc3 = st.columns(3)
+            bc1.metric("Confounding Bias",       f"{gap:.3f} days")
+            bc2.metric("Bias as % of Observed",  f"{gap_pct:.1f}%")
+            bc3.metric("95% CI Width",           f"{(ci_high - ci_low):.3f} days")
     
-        # Bar chart — correlation vs causal vs planted ─────────────────────────────
-        bar_cats   = ["Correlation-Based", "Causal (Adjusted)"]
-        bar_vals   = [naive_val, causal_val]
-        bar_colors = [ERROR, SUCCESS]
-        bar_errs   = [None, (ci_high - ci_low) / 2]
-        if gt_val is not None:
-            bar_cats.append("Planted Structure"); bar_vals.append(gt_val)
-            bar_colors.append(WARNING); bar_errs.append(None)
-    
-        fig_bar = go.Figure()
-        for cat, val, col, err in zip(bar_cats, bar_vals, bar_colors, bar_errs):
-            fig_bar.add_trace(go.Bar(
-                x=[cat], y=[val], marker_color=col, opacity=0.88, name=cat,
-                error_y=dict(type="data", array=[err or 0],
-                             visible=err is not None, color=TEXT),
-            ))
-        fig_bar.add_annotation(
-            x=0.5, y=max(bar_vals) * 1.08,
-            text=f"Confounding bias: +{gap:.2f} days ({gap_pct:.1f}%)",
-            showarrow=True, arrowhead=2, arrowcolor=ERROR,
-            font=dict(color=ERROR, size=11), bgcolor=CARD,
-            bordercolor=ERROR, borderwidth=1, xref="paper",
-        )
-        fig_bar.add_hline(y=0, line_dash="dash", line_color=MUTED, opacity=0.4)
-        _bar_lay = dict(**PLOTLY_LAYOUT)
-        _bar_lay.update(dict(
-            title=f"Effect on {outcome_label} — {treatment_options[selected_treatment]}",
-            showlegend=False, height=360, bargap=0.38,
-            yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label},
-        ))
-        fig_bar.update_layout(**_bar_lay)
-        try:
-            st.plotly_chart(fig_bar, use_container_width=True)
-        except Exception as _e:
-            st.error(f"Chart error: {_e}")
-    
-        # Causal Finding ────────────────────────────────────────────────────────────
-        st.markdown(
-            f'<div style="background:{WARNING}11;border-left:4px solid {WARNING};'
-            f'border-radius:0 8px 8px 0;padding:16px 20px;margin:14px 0;">'
-            f'<p style="color:{WARNING};font-weight:700;margin:0 0 8px;font-size:0.88rem;'
-            f'text-transform:uppercase;letter-spacing:0.08em;">Causal Finding</p>'
-            f'<p style="color:{TEXT};margin:0;line-height:1.6;font-size:0.88rem;">'
-            f'{result["verdict"]}</p></div>',
-            unsafe_allow_html=True,
-        )
-    
-        ai1, ai2 = st.columns(2)
-        with ai1:
-            st.markdown(
-                f'<div style="background:{ERROR}10;border:1px solid {ERROR}40;'
-                f'border-radius:8px;padding:16px;">'
-                f'<p style="color:{ERROR};font-weight:600;margin:0 0 8px;font-size:0.84rem;">'
-                f"Without Causal Adjustment</p>"
-                f'<p style="color:{TEXT};font-size:0.87rem;margin:0;line-height:1.6;">'
-                f"Observed: <b>+{naive_val:.3f} days</b><br>"
-                f'<span style="color:{MUTED};">Risk: reacting to a confounded signal — '
-                f"{gap:.2f} days ({gap_pct:.1f}%) of this is pure confounding bias.</span>"
-                f"</p></div>",
-                unsafe_allow_html=True,
-            )
-        with ai2:
-            st.markdown(
-                f'<div style="background:{SUCCESS}10;border:1px solid {SUCCESS}40;'
-                f'border-radius:8px;padding:16px;">'
-                f'<p style="color:{SUCCESS};font-weight:600;margin:0 0 8px;font-size:0.84rem;">'
-                f"With Backdoor Adjustment</p>"
-                f'<p style="color:{TEXT};font-size:0.87rem;margin:0;line-height:1.6;">'
-                f"Causal: <b>+{causal_val:.3f} days</b> [{ci_low:.2f}, {ci_high:.2f}]<br>"
-                f'<span style="color:{MUTED};">Policy lever: targeted intervention on confounders, '
-                f"not the treatment variable itself.</span>"
-                f"</p></div>",
-                unsafe_allow_html=True,
-            )
-    
-        # 3. Causal Pathway — Sankey (Plotly Gallery pattern) ─────────────────────
-        st.divider()
-        section_header(
-            "3. Causal Pathway — Sankey Decomposition",
-            "The observed correlation decomposes into genuine causal effect + confounding bias. "
-            "Flow widths are proportional to effect magnitudes.",
-            icon="🌊", tag="Sankey", tag_color=SECONDARY,
-        )
-    
-        _safe_naive  = max(abs(naive_val), 1e-6)
-        _safe_causal = max(abs(causal_val), 1e-6)
-        _safe_gap    = max(abs(gap), 1e-6)
-    
-        fig_sankey = go.Figure(go.Sankey(
-            arrangement="snap",
-            node=dict(
-                pad=20, thickness=22,
-                line=dict(color=BORDER, width=0.5),
-                label=[
-                    "Observed Correlation",
-                    "True Causal Effect",
-                    "Confounding Bias",
-                    f"Outcome ({outcome_label})",
-                    "Confounder (removed)",
-                ],
-                color=[MUTED, SUCCESS, ERROR, WARNING, ERROR],
-                hovertemplate="%{label}: %{value:.2f}<extra></extra>",
-            ),
-            link=dict(
-                source=[0, 0, 1, 2],
-                target=[1, 2, 3, 4],
-                value=[_safe_causal, _safe_gap, _safe_causal, _safe_gap],
-                color=[
-                    f"rgba(16,185,129,0.30)",
-                    f"rgba(239,68,68,0.30)",
-                    f"rgba(245,158,11,0.30)",
-                    f"rgba(239,68,68,0.20)",
-                ],
-                label=[
-                    f"Causal pathway ({causal_val:.2f} days)",
-                    f"{'Confounding inflation' if gap >= 0 else 'Confounding suppression'} ({abs(gap):.2f} days = {abs(gap_pct):.1f}%)",
-                    f"Reaches outcome",
-                    "Eliminated by adjustment",
-                ],
-            ),
-        ))
-        _sk_lay = dict(**PLOTLY_LAYOUT)
-        _sk_lay.update(dict(
-            title=f"Observed Correlation Decomposed — {treatment_options[selected_treatment]}",
-            height=380,
-            font=dict(family="Inter, sans-serif", color=TEXT, size=12),
-        ))
-        fig_sankey.update_layout(**_sk_lay)
-        try:
-            st.plotly_chart(fig_sankey, use_container_width=True)
-        except Exception as _e:
-            st.error(f"Sankey error: {_e}")
-    
-        # 4. Sensitivity Analysis (R11 mandatory) ──────────────────────────────────
-        st.divider()
-        section_header(
-            "4. Sensitivity Analysis — Unmeasured Confounding",
-            "How does the causal estimate shift under increasing unmeasured confounder strength?",
-            icon="🔬", tag="R11 Mandatory", tag_color=WARNING,
-        )
-    
-        strengths       = sens["confounding_strengths"]
-        estimates_sweep = sens["estimates_under_confounding"]
-    
-        if estimates_sweep and len(estimates_sweep) == len(strengths):
-            fig_sens = go.Figure()
-            _band = abs(causal_val) * 0.15 + 0.2
-            fig_sens.add_trace(go.Scatter(
-                x=strengths + strengths[::-1],
-                y=([causal_val + _band] * len(strengths) + [causal_val - _band] * len(strengths)),
-                fill="toself",
-                fillcolor="rgba(108,99,255,0.09)",
-                line=dict(color="rgba(0,0,0,0)"),
-                showlegend=False, hoverinfo="none",
-            ))
-            fig_sens.add_trace(go.Scatter(
-                x=strengths, y=estimates_sweep,
-                mode="lines+markers",
-                line=dict(color=PRIMARY, width=2.5),
-                marker=dict(size=8, color=PRIMARY, line=dict(width=1.5, color=BG)),
-                name="Estimate under confounding",
-            ))
-            fig_sens.add_hline(y=causal_val, line_dash="dash", line_color=SUCCESS, opacity=0.7,
-                                annotation_text=f"Causal ({causal_val:.2f})",
-                                annotation_font_color=SUCCESS)
-            fig_sens.add_hline(y=naive_val,  line_dash="dash", line_color=ERROR,   opacity=0.5,
-                                annotation_text=f"Naive ({naive_val:.2f})",
-                                annotation_font_color=ERROR)
+            # Bar chart — correlation vs causal vs planted ─────────────────────────────
+            bar_cats   = ["Correlation-Based", "Causal (Adjusted)"]
+            bar_vals   = [naive_val, causal_val]
+            bar_colors = [ERROR, SUCCESS]
+            bar_errs   = [None, (ci_high - ci_low) / 2]
             if gt_val is not None:
-                fig_sens.add_hline(y=gt_val, line_dash="dot", line_color=WARNING, opacity=0.7,
-                                    annotation_text=f"Planted ({gt_val:.2f})",
-                                    annotation_font_color=WARNING)
-            _sl = dict(**PLOTLY_LAYOUT)
-            _sl.update(dict(
-                title="Causal Estimate Under Increasing Unmeasured Confounder Strength",
-                height=360,
-                xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "title": "Unmeasured Confounder Strength"},
+                bar_cats.append("Planted Structure"); bar_vals.append(gt_val)
+                bar_colors.append(WARNING); bar_errs.append(None)
+    
+            fig_bar = go.Figure()
+            for cat, val, col, err in zip(bar_cats, bar_vals, bar_colors, bar_errs):
+                fig_bar.add_trace(go.Bar(
+                    x=[cat], y=[val], marker_color=col, opacity=0.88, name=cat,
+                    error_y=dict(type="data", array=[err or 0],
+                                 visible=err is not None, color=TEXT),
+                ))
+            fig_bar.add_annotation(
+                x=0.5, y=max(bar_vals) * 1.08,
+                text=f"Confounding bias: +{gap:.2f} days ({gap_pct:.1f}%)",
+                showarrow=True, arrowhead=2, arrowcolor=ERROR,
+                font=dict(color=ERROR, size=11), bgcolor=CARD,
+                bordercolor=ERROR, borderwidth=1, xref="paper",
+            )
+            fig_bar.add_hline(y=0, line_dash="dash", line_color=MUTED, opacity=0.4)
+            _bar_lay = dict(**PLOTLY_LAYOUT)
+            _bar_lay.update(dict(
+                title=f"Effect on {outcome_label} — {treatment_options[selected_treatment]}",
+                showlegend=False, height=360, bargap=0.38,
                 yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label},
             ))
-            fig_sens.update_layout(**_sl)
+            fig_bar.update_layout(**_bar_lay)
             try:
-                st.plotly_chart(fig_sens, use_container_width=True)
+                st.plotly_chart(fig_bar, use_container_width=True, theme=None, config={'displayModeBar': False})
             except Exception as _e:
                 st.error(f"Chart error: {_e}")
     
-        sc1, sc2 = st.columns(2)
-        sc1.metric("Placebo Test", f"{sens['placebo_effect']:.3f} days", delta="Expected ≈ 0", delta_color="off")
-        if estimates_sweep:
-            sc2.metric("Estimate Range", f"[{min(estimates_sweep):.2f}, {max(estimates_sweep):.2f}] days")
+            # Causal Finding ────────────────────────────────────────────────────────────
+            st.markdown(
+                f'<div style="background:{WARNING}11;border-left:4px solid {WARNING};'
+                f'border-radius:0 8px 8px 0;padding:16px 20px;margin:14px 0;">'
+                f'<p style="color:{WARNING};font-weight:700;margin:0 0 8px;font-size:0.88rem;'
+                f'text-transform:uppercase;letter-spacing:0.08em;">Causal Finding</p>'
+                f'<p style="color:{TEXT};margin:0;line-height:1.6;font-size:0.88rem;">'
+                f'{result["verdict"]}</p></div>',
+                unsafe_allow_html=True,
+            )
     
-        insight_card("Sensitivity Finding", sens["verdict"], "success")
+            ai1, ai2 = st.columns(2)
+            with ai1:
+                st.markdown(
+                    f'<div style="background:{ERROR}10;border:1px solid {ERROR}40;'
+                    f'border-radius:8px;padding:16px;">'
+                    f'<p style="color:{ERROR};font-weight:600;margin:0 0 8px;font-size:0.84rem;">'
+                    f"Without Causal Adjustment</p>"
+                    f'<p style="color:{TEXT};font-size:0.87rem;margin:0;line-height:1.6;">'
+                    f"Observed: <b>+{naive_val:.3f} days</b><br>"
+                    f'<span style="color:{MUTED};">Risk: reacting to a confounded signal — '
+                    f"{gap:.2f} days ({gap_pct:.1f}%) of this is pure confounding bias.</span>"
+                    f"</p></div>",
+                    unsafe_allow_html=True,
+                )
+            with ai2:
+                st.markdown(
+                    f'<div style="background:{SUCCESS}10;border:1px solid {SUCCESS}40;'
+                    f'border-radius:8px;padding:16px;">'
+                    f'<p style="color:{SUCCESS};font-weight:600;margin:0 0 8px;font-size:0.84rem;">'
+                    f"With Backdoor Adjustment</p>"
+                    f'<p style="color:{TEXT};font-size:0.87rem;margin:0;line-height:1.6;">'
+                    f"Causal: <b>+{causal_val:.3f} days</b> [{ci_low:.2f}, {ci_high:.2f}]<br>"
+                    f'<span style="color:{MUTED};">Policy lever: targeted intervention on confounders, '
+                    f"not the treatment variable itself.</span>"
+                    f"</p></div>",
+                    unsafe_allow_html=True,
+                )
     
-        # 5. Cross-seed robustness ──────────────────────────────────────────────────
-        with st.expander("5. Cross-Seed Robustness Analysis"):
-            if domain != "manufacturing":
-                st.info("Cross-seed robustness is validated on the manufacturing domain "
-                        "(planted ground truth). See Tab 7 for cross-domain comparison.")
-            else:
-                rob_key = "robustness_manufacturing"
-                if rob_key not in st.session_state:
-                    with st.spinner("Running pipeline across 3 random seeds…"):
-                        from src.phase4_dooperator import robustness_across_seeds
-                        _rob_res, _rob_err = _run_with_timeout(
-                            robustness_across_seeds,
-                            kwargs={"treatment": cfg["treatment_var"],
-                                    "outcome": outcome_var,
-                                    "seeds": range(42, 45)},
-                            timeout=90,
-                        )
-                        if _rob_res is not None:
-                            st.session_state[rob_key] = _rob_res
-                        else:
-                            st.warning(f"Robustness analysis timed out: {_rob_err}")
-                rob = st.session_state.get(rob_key)
-                if rob is None:
-                    st.info("Robustness analysis pending — reopen this expander after the page stabilises.")
+            # 3. Causal Pathway — Sankey (Plotly Gallery pattern) ─────────────────────
+            st.divider()
+            section_header(
+                "3. Causal Pathway — Sankey Decomposition",
+                "The observed correlation decomposes into genuine causal effect + confounding bias. "
+                "Flow widths are proportional to effect magnitudes.",
+                icon="🌊", tag="Sankey", tag_color=SECONDARY,
+            )
+    
+            _safe_naive  = max(abs(naive_val), 1e-6)
+            _safe_causal = max(abs(causal_val), 1e-6)
+            _safe_gap    = max(abs(gap), 1e-6)
+    
+            fig_sankey = go.Figure(go.Sankey(
+                # The "True Causal Effect" (depth 1) node's right-growing
+                # label and "Outcome (...)" (depth 2) node's left-growing
+                # label both grow into the gap between the two columns —
+                # with the depth-1 column at the default x≈0.5, the gap
+                # wasn't wide enough for both, so the labels visually merged
+                # ("True Causal EffeOutcome (...)"). Pinning depth 1 further
+                # left (x=0.35) buys enough clearance regardless of how long
+                # the (domain-dependent) outcome label is.
+                arrangement="snap",
+                node=dict(
+                    pad=20, thickness=22,
+                    line=dict(color=BORDER, width=0.5),
+                    label=[
+                        "Observed Correlation",
+                        "True Causal Effect",
+                        "Confounding Bias",
+                        f"Outcome ({outcome_label})",
+                        "Confounder (removed)",
+                    ],
+                    x=[0.001, 0.35, 0.35, 0.999, 0.999],
+                    y=[0.5,   0.25, 0.75, 0.25,  0.75],
+                    color=[MUTED, SUCCESS, ERROR, WARNING, ERROR],
+                    hovertemplate="%{label}: %{value:.2f}<extra></extra>",
+                ),
+                link=dict(
+                    source=[0, 0, 1, 2],
+                    target=[1, 2, 3, 4],
+                    value=[_safe_causal, _safe_gap, _safe_causal, _safe_gap],
+                    color=[
+                        f"rgba(16,185,129,0.30)",
+                        f"rgba(239,68,68,0.30)",
+                        f"rgba(245,158,11,0.30)",
+                        f"rgba(239,68,68,0.20)",
+                    ],
+                    label=[
+                        f"Causal pathway ({causal_val:.2f} days)",
+                        f"{'Confounding inflation' if gap >= 0 else 'Confounding suppression'} ({abs(gap):.2f} days = {abs(gap_pct):.1f}%)",
+                        f"Reaches outcome",
+                        "Eliminated by adjustment",
+                    ],
+                ),
+            ))
+            _sk_lay = dict(**PLOTLY_LAYOUT)
+            _sk_lay.update(dict(
+                title=f"Observed Correlation Decomposed — {treatment_options[selected_treatment]}",
+                height=380,
+                font=dict(family="Inter, sans-serif", color=TEXT, size=12),
+            ))
+            fig_sankey.update_layout(**_sk_lay)
+            try:
+                st.plotly_chart(fig_sankey, use_container_width=True, theme=None, config={'displayModeBar': False})
+            except Exception as _e:
+                st.error(f"Sankey error: {_e}")
+    
+            # 4. Sensitivity Analysis (R11 mandatory) ──────────────────────────────────
+            st.divider()
+            section_header(
+                "4. Sensitivity Analysis — Unmeasured Confounding",
+                "How does the causal estimate shift under increasing unmeasured confounder strength?",
+                icon="🔬", tag="R11 Mandatory", tag_color=WARNING,
+            )
+    
+            strengths       = sens["confounding_strengths"]
+            estimates_sweep = sens["estimates_under_confounding"]
+    
+            if estimates_sweep and len(estimates_sweep) == len(strengths):
+                fig_sens = go.Figure()
+                _band = abs(causal_val) * 0.15 + 0.2
+                fig_sens.add_trace(go.Scatter(
+                    x=strengths + strengths[::-1],
+                    y=([causal_val + _band] * len(strengths) + [causal_val - _band] * len(strengths)),
+                    fill="toself",
+                    fillcolor="rgba(108,99,255,0.09)",
+                    line=dict(color="rgba(0,0,0,0)"),
+                    showlegend=False, hoverinfo="none",
+                ))
+                fig_sens.add_trace(go.Scatter(
+                    x=strengths, y=estimates_sweep,
+                    mode="lines+markers",
+                    line=dict(color=PRIMARY, width=2.5),
+                    marker=dict(size=8, color=PRIMARY, line=dict(width=1.5, color=BG)),
+                    name="Estimate under confounding",
+                ))
+                fig_sens.add_hline(y=causal_val, line_dash="dash", line_color=SUCCESS, opacity=0.7,
+                                    annotation_text=f"Causal ({causal_val:.2f})",
+                                    annotation_font_color=SUCCESS,
+                                    annotation_position="top right")
+                fig_sens.add_hline(y=naive_val,  line_dash="dash", line_color=ERROR,   opacity=0.5,
+                                    annotation_text=f"Naive ({naive_val:.2f})",
+                                    annotation_font_color=ERROR,
+                                    annotation_position="top right")
+                if gt_val is not None:
+                    fig_sens.add_hline(y=gt_val, line_dash="dot", line_color=WARNING, opacity=0.7,
+                                        annotation_text=f"Planted ({gt_val:.2f})",
+                                        annotation_font_color=WARNING,
+                                        annotation_position="bottom right")
+                _sl = dict(**PLOTLY_LAYOUT)
+                _sl.update(dict(
+                    title="Causal Estimate Under Increasing Unmeasured Confounder Strength",
+                    height=360,
+                    xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "title": "Unmeasured Confounder Strength"},
+                    yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label},
+                ))
+                fig_sens.update_layout(**_sl)
+                try:
+                    st.plotly_chart(fig_sens, use_container_width=True, theme=None, config={'displayModeBar': False})
+                except Exception as _e:
+                    st.error(f"Chart error: {_e}")
+    
+            sc1, sc2 = st.columns(2)
+            sc1.metric("Placebo Test", f"{sens['placebo_effect']:.3f} days", delta="Expected ≈ 0", delta_color="off")
+            if estimates_sweep:
+                sc2.metric("Estimate Range", f"[{min(estimates_sweep):.2f}, {max(estimates_sweep):.2f}] days")
+    
+            insight_card("Sensitivity Finding", sens["verdict"], "success")
+    
+            # 5. Cross-seed robustness ──────────────────────────────────────────────────
+            with st.expander("5. Cross-Seed Robustness Analysis"):
+                if domain != "manufacturing":
+                    st.info("Cross-seed robustness is validated on the manufacturing domain "
+                            "(planted ground truth). See Tab 7 for cross-domain comparison.")
                 else:
-                  rs1, rs2, rs3 = st.columns(3)
-                  rs1.metric("Mean Causal Estimate", f"{rob['mean_causal']:.3f} days")
-                  rs2.metric("Std Dev",              f"{rob['std_causal']:.3f} days")
-                  rs3.metric("Seeds Tested",         len(rob["seeds"]))
-                if rob is not None and rob.get("causal_estimates"):
-                    fig_rob = go.Figure()
-                    fig_rob.add_trace(go.Box(y=rob["causal_estimates"], name="Causal",
-                                              marker_color=SUCCESS, boxmean=True))
-                    fig_rob.add_trace(go.Box(y=rob["naive_estimates"],  name="Naive",
-                                              marker_color=ERROR,   boxmean=True))
-                    if gt_val is not None:
-                        fig_rob.add_hline(y=true_effect_main, line_dash="dot", line_color=WARNING,
-                                           annotation_text="Planted truth",
-                                           annotation_font_color=WARNING)
-                    _rl = dict(**PLOTLY_LAYOUT)
-                    _rl.update(dict(
-                        title="Causal vs Naive Estimates Across 10 Random Seeds",
-                        yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label},
-                        height=340,
-                    ))
-                    fig_rob.update_layout(**_rl)
-                    try:
-                        st.plotly_chart(fig_rob, use_container_width=True)
-                    except Exception as _e:
-                        st.error(f"Chart error: {_e}")
+                    rob_key = "robustness_manufacturing"
+                    if rob_key not in st.session_state:
+                        with st.spinner("Running pipeline across 3 random seeds…"):
+                            from src.phase4_dooperator import robustness_across_seeds
+                            _rob_res, _rob_err = _run_with_timeout(
+                                robustness_across_seeds,
+                                kwargs={"treatment": cfg["treatment_var"],
+                                        "outcome": outcome_var,
+                                        "seeds": range(42, 45)},
+                                timeout=90,
+                            )
+                            if _rob_res is not None:
+                                st.session_state[rob_key] = _rob_res
+                            else:
+                                st.warning(f"Robustness analysis timed out: {_rob_err}")
+                    rob = st.session_state.get(rob_key)
+                    if rob is None:
+                        st.info("Robustness analysis pending — reopen this expander after the page stabilises.")
+                    else:
+                      rs1, rs2, rs3 = st.columns(3)
+                      rs1.metric("Mean Causal Estimate", f"{rob['mean_causal']:.3f} days")
+                      rs2.metric("Std Dev",              f"{rob['std_causal']:.3f} days")
+                      rs3.metric("Seeds Tested",         len(rob["seeds"]))
+                    if rob is not None and rob.get("causal_estimates"):
+                        fig_rob = go.Figure()
+                        fig_rob.add_trace(go.Box(y=rob["causal_estimates"], name="Causal",
+                                                  marker_color=SUCCESS, boxmean=True))
+                        fig_rob.add_trace(go.Box(y=rob["naive_estimates"],  name="Naive",
+                                                  marker_color=ERROR,   boxmean=True))
+                        if gt_val is not None:
+                            fig_rob.add_hline(y=true_effect_main, line_dash="dot", line_color=WARNING,
+                                               annotation_text="Planted truth",
+                                               annotation_font_color=WARNING)
+                        _rl = dict(**PLOTLY_LAYOUT)
+                        _rl.update(dict(
+                            title="Causal vs Naive Estimates Across 10 Random Seeds",
+                            yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label},
+                            height=340,
+                        ))
+                        fig_rob.update_layout(**_rl)
+                        try:
+                            st.plotly_chart(fig_rob, use_container_width=True, theme=None, config={'displayModeBar': False})
+                        except Exception as _e:
+                            st.error(f"Chart error: {_e}")
     
-                if rob is not None and rob.get("all_within_05"):
-                    insight_card(
-                        "Robustness Confirmed",
-                        f"All {len(rob['seeds'])} seeds within ±0.5 of the planted true effect. "
-                        f"Mean: {rob['mean_causal']:.3f} ± {rob['std_causal']:.3f} days.",
-                        "success",
-                    )
-                elif rob is not None:
-                    insight_card(
-                        "Robustness Warning",
-                        f"Some seeds outside ±0.5. "
-                        f"Estimates: {[f'{e:.2f}' for e in rob.get('causal_estimates', [])]}",
-                        "warning",
-                    )
+                    if rob is not None and rob.get("all_within_05"):
+                        insight_card(
+                            "Robustness Confirmed",
+                            f"All {len(rob['seeds'])} seeds within ±0.5 of the planted true effect. "
+                            f"Mean: {rob['mean_causal']:.3f} ± {rob['std_causal']:.3f} days.",
+                            "success",
+                        )
+                    elif rob is not None:
+                        insight_card(
+                            "Robustness Warning",
+                            f"Some seeds outside ±0.5. "
+                            f"Estimates: {[f'{e:.2f}' for e in rob.get('causal_estimates', [])]}",
+                            "warning",
+                        )
     
     
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2837,32 +2953,36 @@ with tab5:
         ))
         fig_wf.update_layout(**_wfl)
         try:
-            st.plotly_chart(fig_wf, use_container_width=True)
+            st.plotly_chart(fig_wf, use_container_width=True, theme=None, config={'displayModeBar': False})
         except Exception as _e:
             st.error(f"Chart error: {_e}")
 
-        at1, at2 = st.columns(2)
-        at1.metric("Controllable Factors", f"{attrib_summary['actionable_total']:+.3f} days",
-                   help="Sum of actionable feature SHAP contributions")
-        at2.metric("Structural Factors",   f"{attrib_summary['structural_total']:+.3f} days",
-                   help="Sum of structural feature SHAP contributions")
-        st.caption(f"Max reducible outcome: {attrib_summary['max_reducible_delay']:.2f} days "
-                   "(from interventions on controllable factors)")
+        col_summary, col_detail = st.columns([1, 1.2])
+        with col_summary:
+            at1, at2 = st.columns(2)
+            at1.metric("Controllable Factors", f"{attrib_summary['actionable_total']:+.3f} days",
+                       help="Sum of actionable feature SHAP contributions")
+            at2.metric("Structural Factors",   f"{attrib_summary['structural_total']:+.3f} days",
+                       help="Sum of structural feature SHAP contributions")
+            st.caption(f"Max reducible outcome: {attrib_summary['max_reducible_delay']:.2f} days "
+                       "(from interventions on controllable factors)")
+            
+            st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+            insight_card(
+                "Attribution Summary",
+                f"Baseline: {baseline:.2f} days. Controllable: {attrib_summary['actionable_total']:+.2f}; "
+                f"structural: {attrib_summary['structural_total']:+.2f}. "
+                f"Predicted {predicted:.2f} vs actual {actual:.2f} days.",
+                "info",
+            )
 
-        detail = expl[["feature", "attribution", "shap_value", "feature_value"]].copy()
-        detail.columns = ["Feature", "Attribution", "SHAP Value", "Feature Value"]
-        detail["SHAP Value"]    = detail["SHAP Value"].round(4)
-        detail["Feature Value"] = detail["Feature Value"].round(3)
-        render_table(detail)
-
-        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-        insight_card(
-            "Attribution Summary",
-            f"Baseline: {baseline:.2f} days. Controllable: {attrib_summary['actionable_total']:+.2f}; "
-            f"structural: {attrib_summary['structural_total']:+.2f}. "
-            f"Predicted {predicted:.2f} vs actual {actual:.2f} days.",
-            "info",
-        )
+        with col_detail:
+            detail = expl[["feature", "attribution", "shap_value", "feature_value"]].copy()
+            detail.columns = ["Feature", "Attribution", "SHAP Value", "Feature Value"]
+            detail["SHAP Value"]    = detail["SHAP Value"].round(4)
+            detail["Feature Value"] = detail["Feature Value"].round(3)
+            with st.expander("📁 View Detailed SHAP Values", expanded=True):
+                render_table(detail)
     else:
         st.warning("Attribution could not be computed for this case.")
 
@@ -3022,7 +3142,7 @@ with tab7:
         ))
         fig_cross.update_layout(**_cl)
         try:
-            st.plotly_chart(fig_cross, use_container_width=True)
+            st.plotly_chart(fig_cross, use_container_width=True, theme=None, config={'displayModeBar': False})
         except Exception as _e:
             st.error(f"Chart error: {_e}")
 
@@ -3056,10 +3176,14 @@ with tab7:
         _pcl.update(dict(
             title="Parallel Coordinates — Both Domains",
             height=360,
+            # Parcoords draws its dimension labels right at the top of the
+            # plot area, which collides with the chart title using the base
+            # margin (t=50) — push the plot down to clear the title.
+            margin=dict(l=20, r=20, t=90, b=20),
         ))
         fig_pc.update_layout(**_pcl)
         try:
-            st.plotly_chart(fig_pc, use_container_width=True)
+            st.plotly_chart(fig_pc, use_container_width=True, theme=None, config={'displayModeBar': False})
         except Exception as _e:
             st.error(f"Chart error: {_e}")
 
@@ -3108,7 +3232,7 @@ with tab7:
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.divider()
 st.markdown(
-    f'<p style="color:{MUTED};font-size:0.78rem;font-family:\'JetBrains Mono\',monospace;'
+    f'<p style="color:{MUTED};font-size:0.78rem;font-family:\'Inter\',-apple-system,sans-serif;'
     f'text-align:center;padding:4px 0;">'
     f"CausalOCPM · Causal-Explainable Object-Centric Process Mining"
     f"&nbsp;&nbsp;|&nbsp;&nbsp;"
