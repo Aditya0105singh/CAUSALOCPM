@@ -1,4 +1,6 @@
 # CausalOCPM
+![Status: Fully Functional](https://img.shields.io/badge/Status-Fully%20Functional-success) ![Python](https://img.shields.io/badge/Python-3.8%2B-blue) ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B)
+
 ## Causal-Explainable Object-Centric Process Mining
 ### A Generalised Framework for Counterfactual Policy Evaluation
 
@@ -6,7 +8,7 @@
 
 ## Overview
 
-CausalOCPM bridges two previously separate fields — Object-Centric Process Mining (OCPM) and Structural Causal Models (SCMs) — to enable rigorous causal policy evaluation in multi-entity business processes.
+**CausalOCPM** is a fully functional, end-to-end framework that bridges two previously separate fields — Object-Centric Process Mining (OCPM) and Structural Causal Models (SCMs) — to enable rigorous causal policy evaluation in multi-entity business processes.
 
 The central research demonstration: in process analytics, naive correlation-based estimates of process factor effects are systematically inflated by confounding. CausalOCPM identifies confounders automatically via causal discovery, removes their influence via backdoor adjustment, and recovers the true causal effect — validated against planted ground truth in both manufacturing and healthcare domains.
 
