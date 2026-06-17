@@ -505,3 +505,63 @@ ul[role="listbox"] {
     font-size: 0.75rem !important;
     margin: 0 !important;
 }
+
+/* ── MOBILE: Restore sidebar toggle button ───────────────────────────────── */
+/* The header is hidden globally (display:none) which also removes the
+   hamburger/toggle button on small screens, making the sidebar permanently
+   inaccessible on phones. Re-surface only the toggle button on mobile. */
+@media (max-width: 768px) {
+    /* Show the collapsed-sidebar toggle that Streamlit injects */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        z-index: 99999 !important;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+        padding: 6px 8px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+    }
+    [data-testid="collapsedControl"] svg {
+        width: 20px !important;
+        height: 20px !important;
+        color: #10B981 !important;
+        fill: #10B981 !important;
+    }
+
+    /* Push main content down so it doesn't sit under the toggle button */
+    .stApp [data-testid="stAppViewBlockContainer"],
+    .stApp .main .block-container,
+    [data-testid="stMainBlockContainer"] {
+        padding-top: 3.5rem !important;
+    }
+
+    /* Sidebar takes full width on phone when open */
+    [data-testid="stSidebar"] {
+        width: 85vw !important;
+        min-width: unset !important;
+        max-width: 320px !important;
+    }
+
+    /* Prevent horizontal scroll caused by wide embedded canvases */
+    [data-testid="stIFrame"],
+    iframe {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    /* Stack columns vertically on small screens */
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+    }
+    [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: unset !important;
+    }
+}

@@ -59,6 +59,8 @@ if IS_LIGHT:
 }
 .stApp { background-color: #FFFFFF !important; }
 [data-testid="stHeader"] { display: none !important; }
+/* Keep sidebar toggle visible even when header is hidden (mobile fix) */
+[data-testid="collapsedControl"] { display: flex !important; }
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     padding-top: 0 !important;
 }
