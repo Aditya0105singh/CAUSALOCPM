@@ -3115,8 +3115,8 @@ with tab6:
     _cl = dict(**PLOTLY_LAYOUT)
     _cl.update(dict(
         barmode="group",
-        yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": "Effect on Outcome (days)", "titlefont": dict(size=14)},
-        xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "title": "Domain", "titlefont": dict(size=14)},
+        yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": "Effect on Outcome (days)", "title_font": dict(size=14)},
+        xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "title": "Domain", "title_font": dict(size=14)},
         height=400,
         margin=dict(l=20, r=20, t=20, b=40),
     ))
