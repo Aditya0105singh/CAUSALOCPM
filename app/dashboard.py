@@ -24,9 +24,16 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 
 # ── PAGE CONFIG (first st.* call) ─────────────────────────────────────────────
+from PIL import Image
+try:
+    _logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+    _page_icon = Image.open(_logo_path)
+except Exception:
+    _page_icon = "⬡"
+
 st.set_page_config(
     page_title="CausalOCPM — Causal Process Intelligence",
-    page_icon="⬡",
+    page_icon=_page_icon,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -2813,7 +2820,7 @@ with tab4:
                           annotation_font_color="#475569")
         _wfl = dict(**PLOTLY_LAYOUT)
         _wfl.update(dict(
-            yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label, "titlefont": dict(size=14)},
+            yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label, "title_font": dict(size=14)},
             xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "tickangle": -45, "tickfont": dict(size=13)},
             height=550,
             margin=dict(l=20, r=20, t=20, b=120),
