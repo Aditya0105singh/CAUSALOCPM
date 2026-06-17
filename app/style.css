@@ -265,7 +265,7 @@ ul[data-baseweb="menu"], [data-baseweb="list"], div[role="listbox"], [data-testi
     border: 1px solid #E2E8F0 !important;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
 }
-li[role="option"] { background-color: #022C22 !important; color: #334155 !important; }
+li[role="option"] { background-color: #FFFFFF !important; color: #334155 !important; }
 li[role="option"]:hover { background: #F1F5F9 !important; color: #0F172A !important; }
 li[role="option"][aria-selected="true"] { background: #EFF6FF !important; color: #059669 !important; }
 
@@ -368,7 +368,7 @@ li[role="option"][aria-selected="true"] { background: #EFF6FF !important; color:
 [data-baseweb="popover"] [data-testid="stVirtualDropdown"],
 div[role="listbox"],
 ul[role="listbox"] {
-    background-color: #022C22 !important;
+    background-color: #FFFFFF !important;
     background: #FFFFFF !important;
 }
 

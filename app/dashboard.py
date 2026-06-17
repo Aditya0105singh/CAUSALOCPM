@@ -891,89 +891,193 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # ── 2. Causal Copilot (Compact UI) ───────────────────────────────────────────
+    # ── 2. Causal Copilot ────────────────────────────────────────────────────────
     st.markdown('<p class="sb-label">🧠 &nbsp;CAUSAL COPILOT</p>', unsafe_allow_html=True)
-    
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = []
-        
-    for msg in st.session_state["chat_history"]:
-        if msg["role"] == "assistant":
+
+    # Session-state init
+    if "chat_history"      not in st.session_state: st.session_state["chat_history"]      = []
+    if "copilot_input_key" not in st.session_state: st.session_state["copilot_input_key"] = 0
+    if "last_copilot_q"    not in st.session_state: st.session_state["last_copilot_q"]    = ""
+    if "pending_copilot_q" not in st.session_state: st.session_state["pending_copilot_q"] = ""
+
+    # ── Chat history display ─────────────────────────────────────────────────
+    for _cm in st.session_state["chat_history"]:
+        if _cm["role"] == "user":
             st.markdown(
-                f'<div style="background:#F8FAFC; border-left: 3px solid #10B981; padding:8px 12px; border-radius:4px; font-size:0.85rem; color:#334155; margin-bottom:12px; line-height:1.4;">'
-                f'{msg["content"]}'
-                f'</div>',
-                unsafe_allow_html=True
+                f'<div style="background:#EFF6FF; border-left:3px solid #3B82F6; '
+                f'padding:7px 11px; border-radius:4px; font-size:0.82rem; '
+                f'color:#1E3A8A; margin-bottom:4px; line-height:1.45;">'
+                f'<b>You:</b> {_cm["content"]}</div>',
+                unsafe_allow_html=True,
             )
-            
-    copilot_q = st.text_input("Ask Your Own Question", placeholder="Why are delays increasing?", label_visibility="collapsed")
-    
-    with st.expander("✨ Quick Questions"):
-        if st.button("🔎 Why are shipment delays increasing?"):
-            copilot_q = "Why are shipment delays increasing?"
-        if st.button("🎯 What intervention should we prioritize?"):
-            copilot_q = "What intervention should we prioritize?"
-        if st.button("📈 Explain this outcome."):
-            copilot_q = "Explain this outcome."
-        if st.button("🌐 Compare manufacturing and healthcare."):
-            copilot_q = "Compare manufacturing and healthcare."
-        if st.button("✨ Summarize today's key insights."):
-            copilot_q = "Summarize today's key insights."
-
-    if copilot_q:
-        def _get_copilot_response(query):
-            query = query.lower().strip()
-            if query == "clear": return "CLEAR"
-            
-            kb = {
-                "why are shipment delays increasing": "The structural model reveals that shipment delays are causally driven by material lead time variability upstream. Naive analytics miss this confounder.",
-                "what intervention should we prioritize": "Simulations indicate that prioritizing supplier capacity adjustments yields the highest causal impact on reducing cycle time.",
-                "explain this outcome": "The observed outcome is heavily influenced by unobserved confounders. CausalOCPM uses do-calculus to isolate the true interventional effect from background noise.",
-                "compare manufacturing and healthcare": "Manufacturing is bottlenecked by capacity, whereas Healthcare is constrained by resource allocation. The framework scales seamlessly across both by learning domain-specific DAGs.",
-                "summarize todays key insights": "The pipeline recovered 18 causal links and successfully simulated 3 interventions. The optimal policy recommendation is ready in the Simulation tab.",
-                "what is object centric process mining": "Object-Centric Process Mining (OCPM) moves beyond traditional single-case-id process mining by mapping events to multiple interconnected objects (e.g., an Order, an Item, and a Shipment) simultaneously.",
-                "how do you handle unobserved confounders": "We utilize the backdoor criterion to identify observed variables that can block spurious correlation paths. If confounders are unobserved, we apply instrumental variables and proxy variable adjustments.",
-                "explain case attribution": "Case Attribution uses Shapley values on the Structural Causal Model to explain exactly how much each upstream variable contributed to the final outcome of a specific instance.",
-                "what is the tech stack built with": "CausalOCPM is built using PM4Py for process mining, NetworkX for graph modeling, DoWhy for causal inference, and Streamlit for the executive frontend."
-            }
-            
-            import re
-            from difflib import SequenceMatcher
-            clean_q = re.sub(r'[^\w\s]', '', query)
-            q_tokens = set(clean_q.split())
-            stop_words = {"what", "is", "a", "the", "how", "do", "you", "explain", "tell", "me", "about", "this", "can", "to", "are", "we"}
-            q_keywords = q_tokens - stop_words
-            if not q_keywords: q_keywords = q_tokens
-            
-            best_score = 0.0
-            best_answer = ""
-            for key, answer in kb.items():
-                k_tokens = set(key.split())
-                overlap = len(q_keywords.intersection(k_tokens))
-                sim = SequenceMatcher(None, clean_q, key).ratio()
-                score = (overlap * 1.5) + sim
-                if score > best_score:
-                    best_score = score
-                    best_answer = answer
-                    
-            if best_score >= 1.0: return best_answer
-            
-            import random
-            return random.choice([
-                "I've mapped your query against our Knowledge Base but couldn't find a direct causal link. I suggest reviewing the Causal Discovery tab to see if the feature was filtered out.",
-                "That's an interesting point. While the causal DAG captures the main operational backbone, this specific concept might be acting as an unobserved confounder."
-            ])
-
-        resp = _get_copilot_response(copilot_q)
-        if resp == "CLEAR":
-            st.session_state["chat_history"] = []
-            st.rerun()
         else:
-            with st.spinner("Analyzing Knowledge Base..."):
-                import time
-                time.sleep(0.4)
-            st.session_state["chat_history"].append({"role": "assistant", "content": resp})
+            st.markdown(
+                f'<div style="background:#F0FDF4; border-left:3px solid #10B981; '
+                f'padding:7px 11px; border-radius:4px; font-size:0.82rem; '
+                f'color:#065F46; margin-bottom:10px; line-height:1.45;">'
+                f'{_cm["content"]}</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ── Input row: text box + clear button ───────────────────────────────────
+    _ci_col, _cc_col = st.columns([5, 1])
+    with _ci_col:
+        copilot_q = st.text_input(
+            "Ask",
+            placeholder="Why are delays increasing?",
+            label_visibility="collapsed",
+            key=f"copilot_input_{st.session_state['copilot_input_key']}",
+        )
+    with _cc_col:
+        if st.button("🗑", help="Clear chat", use_container_width=True, key="copilot_clear"):
+            st.session_state["chat_history"]      = []
+            st.session_state["last_copilot_q"]    = ""
+            st.session_state["pending_copilot_q"] = ""
             st.rerun()
+
+    # ── Quick question buttons ────────────────────────────────────────────────
+    with st.expander("✨ Quick Questions"):
+        _quick_qs = [
+            ("🔎", "Why are delays increasing?"),
+            ("🎯", "What intervention should I prioritize?"),
+            ("📈", "Explain this outcome."),
+            ("🌐", "Compare manufacturing and healthcare."),
+            ("⚙️", "How does causal discovery work?"),
+            ("📋", "What is case attribution?"),
+        ]
+        for _qi, (_icon, _qlabel) in enumerate(_quick_qs):
+            if st.button(f"{_icon} {_qlabel}", use_container_width=True, key=f"qb_{_qi}"):
+                st.session_state["pending_copilot_q"] = _qlabel
+
+    # Resolve pending quick-question (set by button above; survives the rerun)
+    if st.session_state["pending_copilot_q"]:
+        copilot_q = st.session_state["pending_copilot_q"]
+        st.session_state["pending_copilot_q"] = ""
+
+    # ── Knowledge base & response logic ──────────────────────────────────────
+    def _get_copilot_response(query: str) -> str:
+        import re
+        from difflib import SequenceMatcher
+
+        q = query.lower().strip()
+        kb = {
+            "why are delays increasing": (
+                "Causal discovery identified **machine queue length** and **material lead time** "
+                "as the primary delay drivers. These mediate the effect of supplier selection on "
+                "the final outcome — see the Causal Discovery tab for the full DAG."
+            ),
+            "why are shipment delays increasing": (
+                "The structural model reveals shipment delays are causally driven by material "
+                "lead time variability upstream. Naive analytics miss this confounder and "
+                "misattribute the effect to surface-level factors."
+            ),
+            "what intervention should i prioritize": (
+                "Diversifying supplier allocation yields the highest estimated causal impact "
+                "(≈18 % delay reduction). The Overview tab ranks all interventions by expected "
+                "impact, confidence, and operational effort."
+            ),
+            "what intervention should we prioritize": (
+                "Simulations show that supplier capacity adjustments have the highest causal "
+                "impact on cycle time reduction. Check the Overview tab for the full "
+                "prioritised intervention leaderboard."
+            ),
+            "explain this outcome": (
+                "Each outcome is driven by a mix of controllable factors (supplier choice, "
+                "carrier selection) and structural constraints (order complexity). The "
+                "**Case Attribution** tab decomposes the SHAP contribution of every factor."
+            ),
+            "compare manufacturing and healthcare": (
+                "Manufacturing is bottlenecked by machine capacity and supplier reliability; "
+                "Healthcare by bed occupancy and specialist availability. CausalOCPM applies "
+                "the same five-phase pipeline to both without domain-specific redesign — "
+                "see the Domains tab for side-by-side metrics."
+            ),
+            "how does causal discovery work": (
+                "The **PC-algorithm** tests conditional independencies in the data to orient "
+                "causal edges. CausalOCPM adds domain knowledge constraints that forbid "
+                "implausible edges (e.g. outcome → treatment), improving recall and F1 score "
+                "— shown in the ablation chart at the bottom of the Causal Discovery tab."
+            ),
+            "what is case attribution": (
+                "Case Attribution uses **Shapley values** computed on the Structural Causal "
+                "Model to explain exactly how much each upstream variable contributed to a "
+                "specific case's outcome. It splits contributions into controllable vs. "
+                "structural factors."
+            ),
+            "what is object centric process mining": (
+                "Object-Centric Process Mining maps events to multiple interconnected objects "
+                "(e.g. an Order, an Item, a Shipment) simultaneously, instead of a single "
+                "case ID. This reveals cross-object causal bottlenecks invisible to "
+                "traditional process mining."
+            ),
+            "how do you handle unobserved confounders": (
+                "CausalOCPM applies Pearl's **backdoor criterion** to block spurious "
+                "correlation paths through observed adjustment variables. The Domain Knowledge "
+                "constraints further reduce the chance of latent confounders being treated as "
+                "direct effects."
+            ),
+            "what is the backdoor criterion": (
+                "The backdoor criterion identifies a set of observed variables that, when "
+                "conditioned on, blocks all non-causal paths from treatment to outcome — "
+                "enabling unbiased causal effect estimation even in the presence of "
+                "confounding."
+            ),
+            "what is causal ocpm": (
+                "CausalOCPM is a five-phase Causal Process Intelligence framework: "
+                "(1) Object Graph, (2) Causal Discovery, (3) Structural Causal Model, "
+                "(4) Do-Operator Policy Simulation, (5) Case Attribution. It recovers "
+                "true causal effects from observational event logs."
+            ),
+            "what is the tech stack": (
+                "CausalOCPM is built with **NetworkX** for graph modeling, **DoWhy** for "
+                "causal inference, **scikit-learn** for structural models, and **Streamlit** "
+                "for the executive dashboard."
+            ),
+            "summarize": (
+                "The pipeline successfully recovered causal links with high F1 score. "
+                "Domain knowledge integration improved both recall and F1 score — "
+                "see the ablation chart in the Causal Discovery tab. Navigate to the "
+                "Domains tab for the full cross-domain comparison."
+            ),
+        }
+
+        clean_q = re.sub(r"[^\w\s]", "", q)
+        q_tokens = set(clean_q.split())
+        stops = {"what","is","a","the","how","do","you","explain","tell","me",
+                 "about","this","can","to","are","we","i","it","in","of","my"}
+        keywords = q_tokens - stops or q_tokens
+
+        best_score, best_answer = 0.0, ""
+        for key, answer in kb.items():
+            k_tokens = set(key.split())
+            overlap  = len(keywords & k_tokens)
+            sim      = SequenceMatcher(None, clean_q, key).ratio()
+            score    = overlap * 2.0 + sim
+            if score > best_score:
+                best_score, best_answer = score, answer
+
+        if best_score >= 1.5:
+            return best_answer
+
+        fallbacks = [
+            "I couldn't find a direct match in the Knowledge Base. Try rephrasing, "
+            "or navigate to the relevant tab (Causal Discovery, Case Attribution, Domains) "
+            "for detailed charts and data.",
+            "This concept may be captured in the causal DAG as a mediator or confounder. "
+            "Open the Causal Discovery tab and inspect the full graph structure.",
+            "The structural model might shed light on this — check the Structural Model "
+            "tab for coefficient estimates and the interactive what-if simulator.",
+        ]
+        import random; return random.choice(fallbacks)
+
+    # ── Process new query (guard re-runs with last_copilot_q) ────────────────
+    if copilot_q and copilot_q.strip() and copilot_q != st.session_state["last_copilot_q"]:
+        resp = _get_copilot_response(copilot_q)
+        st.session_state["last_copilot_q"] = copilot_q
+        st.session_state["chat_history"].append({"role": "user",      "content": copilot_q})
+        st.session_state["chat_history"].append({"role": "assistant", "content": resp})
+        st.session_state["copilot_input_key"] += 1   # clears the text box
+        st.rerun()
 
     st.markdown("---")
 
@@ -2113,12 +2217,38 @@ with tab2:
         _n_total = len(_edge_meta)
 
         # ── Node divs ────────────────────────────────────────────────────
+        # Variable descriptions for rich tooltips
+        _VAR_DESC: Dict[str, str] = {
+            "order_complexity":    "Complexity score of the order (1–10)",
+            "supplier_a":          "Binary: order fulfilled by Supplier A",
+            "material_lead_time":  "Days for material to arrive from supplier",
+            "machine_queue_length":"Number of jobs ahead in machine queue",
+            "export_flag":         "Binary: order requires export clearance",
+            "approval_duration":   "Days spent in approval workflow",
+            "carrier_express":     "Binary: express carrier used for shipment",
+            "shipment_delay":      "Total shipment delay in days (outcome)",
+            # Healthcare variables
+            "specialist_referral": "Binary: patient referred to specialist",
+            "comorbidity_index":   "Number of concurrent diagnoses",
+            "test_duration":       "Days spent on diagnostic testing",
+            "bed_occupancy_rate":  "Fraction of beds occupied at admission",
+            "insurance_type":      "Binary: private insurance (vs public)",
+            "procedure_complexity":"Complexity score of the procedure",
+            "length_of_stay":      "Total inpatient days (outcome)",
+        }
         _node_divs = ""
         for _nd in dag.nodes():
             _r = _ROLE_RADIUS[_node_role[_nd]]
             _c = _ROLE_COLOR[_node_role[_nd]]
+            # Compute mean value for the tooltip
+            try:
+                _mean_val = f"{df[_nd].mean():.1f} days" if _nd in df.columns else "—"
+            except Exception:
+                _mean_val = "—"
+            _desc_val = _VAR_DESC.get(_nd, _nd.replace("_", " ").title())
             _node_divs += (
                 f'<div class="dn" id="nd-{_nd}" data-role="{_node_role[_nd]}" '
+                f'data-val="{_mean_val}" data-desc="{_desc_val}" '
                 f'style="left:{_pos[_nd]["x"]}px;top:{_pos[_nd]["y"]}px;'
                 f'width:{_r*2}px;height:{_r*2}px;background:{_c};">'
                 f'<div class="nl">{_nlabel(_nd)}</div></div>\n'
@@ -2284,17 +2414,23 @@ svg{{position:absolute;top:0;left:0;z-index:1;overflow:visible;}}
 
   <!-- Legend -->
   <div class="leg" id="leg">
-    <div class="li"><div class="ll" style="background:#6366F1;"></div>Causal edge</div>
+    <div class="li"><div class="lc" style="background:#D97706;"></div>Confounder</div>
+    <div class="li"><div class="lc" style="background:#059669;"></div>Treatment</div>
+    <div class="li"><div class="lc" style="background:#3B82F6;"></div>Mediator</div>
+    <div class="li"><div class="lc" style="background:#DC2626;"></div>Outcome</div>
+    <div class="li"><div class="ll" style="background:#3B82F6;height:2px;border-radius:1px;"></div>Positive effect</div>
     <div class="li">
       <svg width="18" height="4" style="flex-shrink:0">
         <line x1="0" y1="2" x2="18" y2="2" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="5,3"/>
       </svg>
-      Confounding
+      Negative effect
     </div>
-    <div class="li"><div class="lc" style="background:#D97706;"></div>Confounder</div>
-    <div class="li"><div class="lc" style="background:#059669;"></div>Treatment</div>
-    <div class="li"><div class="lc" style="background:#4F46E5;"></div>Mediator</div>
-    <div class="li"><div class="lc" style="background:#DC2626;"></div>Outcome</div>
+  </div>
+
+  <!-- Click-to-inspect hint — appears after animation completes -->
+  <div id="hint" style="position:absolute;bottom:42px;left:0;right:0;text-align:center;
+       font-size:10px;color:#6B7280;pointer-events:none;opacity:0;transition:opacity 0.5s;">
+    &#128070; Click any node on the graph to inspect its causal role, current value, and connections.
   </div>
 
   <div class="tt" id="tt"></div>
@@ -2351,6 +2487,8 @@ function startAnim() {{
 
   uncls($id('banner'), 'show');
   uncls($id('leg'), 'show');
+  const hint = $id('hint');
+  if(hint) hint.style.opacity = '0';
   setText('ec', '0');
 
   const dot = $id('adot');
@@ -2391,6 +2529,8 @@ function startAnim() {{
     const dot = $id('adot');
     if(dot) {{ dot.style.background = '#10B981'; dot.classList.add('ok'); }}
     setText('atxt', 'Discovery complete');
+    const hint = $id('hint');
+    if(hint) hint.style.opacity = '1';
     done = true;
   }}, p5));
 }}
@@ -2441,9 +2581,20 @@ window.addEventListener('mousemove', e => {{
       if(Math.hypot(mx-cx, my-cy) < eR.width/2 + 4) {{
         const tt = $id('tt');
         if(tt) {{
-          tt.innerHTML = '<b style="color:#818CF8">' + el.dataset.role + '</b>';
+          const role = el.dataset.role || '';
+          const val  = el.dataset.val  || '';
+          const desc = el.dataset.desc || '';
+          const roleColor = {{
+            outcome:'#DC2626', treatment:'#059669',
+            confounder:'#D97706', mediator:'#818CF8'
+          }}[role] || '#818CF8';
+          tt.innerHTML =
+            '<b style="color:'+roleColor+';text-transform:capitalize;">'+role+'</b>'
+            + (val  ? '<br><span style="color:#9CA3AF;font-size:9.5px;">Value: </span>'
+                    + '<span style="color:#E5E7EB;">'+val+'</span>' : '')
+            + (desc ? '<br><span style="color:#6B7280;font-size:9px;">'+desc+'</span>' : '');
           tt.style.left = (cx + eR.width/2 + 8) + 'px';
-          tt.style.top  = (cy - 18) + 'px';
+          tt.style.top  = (cy - 24) + 'px';
           cls(tt, 'show');
         }}
         found = true;
@@ -2694,71 +2845,684 @@ with tab3:
         )
         st.markdown(val_html, unsafe_allow_html=True)
         
-    # SECTION 3: What-If Simulator
-    st.markdown("<h4 style='color:#1E293B; margin-bottom:16px; margin-top:16px;'>What If Simulator</h4>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#64748B; font-size:1rem; margin-top:-8px; margin-bottom:24px;'>Explore how operational interventions affect process outcomes before implementation.</p>", unsafe_allow_html=True)
-    
-    base_delay = 8.2
-    base_throughput = 100
-    base_risk = 45.0
-    
-    c1, c2 = st.columns([1, 2.5])
-    
-    with c1:
-        st.markdown("<h5 style='color:#1E293B; margin-bottom:16px;'>Intervention Levers</h5>", unsafe_allow_html=True)
-        lever_container = st.container()
-        with lever_container:
-            sup_rel = st.slider("Supplier Reliability (%)", 60, 100, 60, 5)
-            mach_cap = st.radio("Machine Capacity", ["Current", "Expanded"], horizontal=True)
-            appr_auto = st.radio("Approval Automation", ["Off", "On"], horizontal=True)
-            workforce = st.slider("Additional Workforce", 0, 10, 0, 1)
-            lead_time = st.radio("Material Lead Time", ["Current", "Reduced"], horizontal=True)
-    
-    delay = base_delay - ((sup_rel - 60) * 0.03)
-    if mach_cap == "Expanded": delay -= 0.8
-    if appr_auto == "On": delay -= 0.4
-    delay -= (workforce * 0.1)
-    if lead_time == "Reduced": delay -= 0.6
-    
-    delay_imp = ((base_delay - delay) / base_delay) * 100
-    
-    throughput = base_throughput + ((sup_rel - 60) * 0.5)
-    if mach_cap == "Expanded": throughput += 15
-    throughput += (workforce * 2)
-    
-    risk = base_risk - ((sup_rel - 60) * 0.4)
-    if appr_auto == "On": risk -= 5
-    if lead_time == "Reduced": risk -= 8
-    risk = max(5.0, risk)
-    
-    with c2:
-        st.markdown("<h5 style='color:#1E293B; margin-bottom:16px;'>Predicted Outcomes</h5>", unsafe_allow_html=True)
-        st.markdown(
-            f'<div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">'
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:24px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:#64748B; font-size:0.9rem; font-weight:700; text-transform:uppercase;">Expected Shipment Delay</div>'
-            f'<div style="display:flex; align-items:baseline; gap:12px; margin-top:8px;">'
-            f'<div style="font-size:2.2rem; font-weight:800; color:#0F172A;">{delay:.1f} <span style="font-size:1rem; color:#64748B; font-weight:600;">days</span></div>'
-            f'<div style="font-size:1.2rem; color:#94A3B8; text-decoration:line-through;">{base_delay:.1f}</div>'
-            f'</div>'
-            f'</div>'
-            f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:24px; border-radius:12px; box-shadow:0 4px 12px rgba(16,185,129,0.05);">'
-            f'<div style="color:#166534; font-size:0.9rem; font-weight:700; text-transform:uppercase;">Estimated Improvement</div>'
-            f'<div style="font-size:2.2rem; font-weight:800; color:#15803D; margin-top:8px;">↓ {delay_imp:.1f}%</div>'
-            f'</div>'
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:24px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:#64748B; font-size:0.9rem; font-weight:700; text-transform:uppercase;">Throughput Capacity</div>'
-            f'<div style="font-size:2.2rem; font-weight:800; color:#3B82F6; margin-top:8px;">↑ {((throughput - base_throughput)/base_throughput*100):.1f}%</div>'
-            f'<div style="color:#64748B; font-size:0.9rem; margin-top:4px;">{int(throughput)} units/day</div>'
-            f'</div>'
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:24px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:#64748B; font-size:0.9rem; font-weight:700; text-transform:uppercase;">Operational Risk</div>'
-            f'<div style="font-size:2.2rem; font-weight:800; color:#10B981; margin-top:8px;">↓ {((base_risk - risk)/base_risk*100):.1f}%</div>'
-            f'<div style="color:#64748B; font-size:0.9rem; margin-top:4px;">Index: {risk:.1f}</div>'
-            f'</div>'
-            f'</div>',
-            unsafe_allow_html=True
+    # ── SECTION 3: What-If Causal Simulator ────────────────────────────────────
+
+    # Session state initialisation
+    _is_mfg_sim = (domain == "manufacturing")
+    _sim_key    = "sim_levers_mfg" if _is_mfg_sim else "sim_levers_hc"
+
+    _MFG_DEFAULTS = {
+        "supplier_reliability_pct": 40, "machine_capacity_expanded": False,
+        "approval_automation": False, "additional_workforce": 0,
+        "material_lead_time_mode": "Current", "carrier_express_pct": 15,
+        "export_flag_reduction": False, "order_batching": False,
+    }
+    _HC_DEFAULTS = {
+        "specialist_allocation_pct": 45, "bed_capacity_expanded": False,
+        "triage_automation": False, "additional_nursing_staff": 0,
+        "fast_track_eligibility_pct": 20, "diagnostic_speed_mode": "Standard",
+    }
+
+    if _sim_key not in st.session_state:
+        st.session_state[_sim_key] = dict(_MFG_DEFAULTS if _is_mfg_sim else _HC_DEFAULTS)
+    if "sim_scenarios" not in st.session_state:
+        st.session_state["sim_scenarios"] = []
+
+    # ── Causal engine ──────────────────────────────────────────────────────────
+    def _live_coef(parent, child, default):
+        if not coefs.empty and "parent" in coefs.columns and "child" in coefs.columns:
+            _m = coefs[(coefs["parent"] == parent) & (coefs["child"] == child)]
+            if not _m.empty:
+                _v = _m.iloc[0].get("estimated_value", default)
+                if pd.notna(_v):
+                    return float(_v)
+        return default
+
+    def _compute_mfg(levers):
+        C_sup_mlt = _live_coef("supplier_a", "material_lead_time", 7.0)
+        C_mlt_del = _live_coef("material_lead_time", "shipment_delay", 0.9)
+        C_mql_apd = _live_coef("machine_queue_length", "approval_duration", 0.7)
+        C_apd_del = _live_coef("approval_duration", "shipment_delay", 0.3)
+
+        BL_DEL = 8.2;  BL_MLT = 7.2;  BL_MQL = 3.1;  BL_APD = 2.4
+        SUP_BASE = 0.60;  CAR_BASE = 15
+
+        sup_a      = 1.0 - levers["supplier_reliability_pct"] / 100.0
+        mlt_factor = {"Current": 1.0, "Reduced (-20%)": 0.80, "Optimised (-40%)": 0.60}[
+            levers["material_lead_time_mode"]]
+
+        mlt_pre = BL_MLT + C_sup_mlt * (sup_a - SUP_BASE)
+        mlt_val = mlt_pre * mlt_factor
+
+        wf_eff  = -0.3 * levers["additional_workforce"]
+        cap_eff = -1.2 if levers["machine_capacity_expanded"] else 0.0
+        mql_val = max(0.0, BL_MQL + wf_eff + cap_eff)
+
+        exp_eff  = -0.35 * BL_APD if levers["export_flag_reduction"] else 0.0
+        auto_eff = -0.50 * BL_APD if levers["approval_automation"]    else 0.0
+        q_eff    = C_mql_apd * (mql_val - BL_MQL)
+        apd_val  = max(0.0, BL_APD + exp_eff + auto_eff + q_eff)
+
+        d_sup     = C_mlt_del * C_sup_mlt * (sup_a - SUP_BASE)
+        d_ltmode  = C_mlt_del * mlt_pre * (mlt_factor - 1.0)
+        d_machine = C_apd_del * q_eff
+        d_appr    = C_apd_del * (exp_eff + auto_eff)
+        d_carrier = -0.008 * (levers["carrier_express_pct"] - CAR_BASE)
+        d_batch   = -0.20 if levers["order_batching"] else 0.0
+
+        pred = max(0.5, BL_DEL + d_sup + d_ltmode + d_machine + d_appr + d_carrier + d_batch)
+        imp  = (BL_DEL - pred) / BL_DEL * 100.0
+
+        throughput = min(160.0, 100.0 * (1 + 0.3 * (1 - mql_val / BL_MQL)))
+        risk_idx   = 45.0 * (pred / BL_DEL)
+
+        impl_cost = (
+            (50000 if levers["machine_capacity_expanded"] else 0) +
+            (30000 if levers["approval_automation"]       else 0) +
+            levers["additional_workforce"] * 5000 +
+            max(0, levers["carrier_express_pct"] - CAR_BASE) * 200 +
+            (20000 if levers["order_batching"]        else 0) +
+            (15000 if levers["export_flag_reduction"] else 0)
         )
+        annual_sav = imp / 100.0 * BL_DEL * 1200 * 3000
+        roi_mo     = (impl_cost / (annual_sav / 12)) if annual_sav > 0 else float("inf")
+
+        return {
+            "predicted": pred, "improvement_pct": imp,
+            "mlt": mlt_val, "mql": mql_val, "apd": apd_val,
+            "throughput": throughput, "risk_index": risk_idx,
+            "impl_cost": impl_cost, "annual_saving": annual_sav, "roi_months": roi_mo,
+            "ci_low": pred * 0.88, "ci_high": pred * 1.12,
+            "deltas": {
+                "Supplier Change":     d_sup,
+                "Lead Time Mode":      d_ltmode,
+                "Machine & Workforce": d_machine,
+                "Approval Actions":    d_appr,
+                "Express Carrier":     d_carrier,
+                "Order Batching":      d_batch,
+            },
+            "baseline": BL_DEL,
+            "mediators": {
+                "Material Lead Time":   (BL_MLT, mlt_val, "days"),
+                "Machine Queue Length": (BL_MQL, mql_val, "units"),
+                "Approval Duration":    (BL_APD, apd_val, "days"),
+            },
+        }
+
+    def _compute_hc(levers):
+        BL = 5.27;  BL_BED = 78.0;  BL_SPEC = 0.45;  FAST_BASE = 20
+
+        spec_prob   = levers["specialist_allocation_pct"] / 100.0
+        diag_factor = {"Standard": 1.0, "Fast (-20%)": 0.80, "Express (-35%)": 0.65}[
+            levers["diagnostic_speed_mode"]]
+
+        bed_eff    = -0.4 if levers["bed_capacity_expanded"] else 0.0
+        nurse_eff  = -0.15 * levers["additional_nursing_staff"]
+        triage_eff = -0.30 if levers["triage_automation"] else 0.0
+        fast_eff   = -0.025 * (levers["fast_track_eligibility_pct"] - FAST_BASE)
+
+        d_spec    = 1.8  * (spec_prob - BL_SPEC)
+        d_diag    = BL   * 0.5 * (diag_factor - 1.0)
+        d_bed     = 0.4  * bed_eff
+        d_nursing = 0.4  * nurse_eff
+        d_triage  = triage_eff
+        d_fast    = fast_eff
+
+        pred = max(0.5, BL + d_spec + d_diag + d_bed + d_nursing + d_triage + d_fast)
+        imp  = (BL - pred) / BL * 100.0
+
+        impl_cost = (
+            (40000 if levers["bed_capacity_expanded"] else 0) +
+            (25000 if levers["triage_automation"]     else 0) +
+            levers["additional_nursing_staff"] * 4500
+        )
+        annual_sav = imp / 100.0 * BL * 1500 * 2000
+        roi_mo     = (impl_cost / (annual_sav / 12)) if annual_sav > 0 else float("inf")
+
+        return {
+            "predicted": pred, "improvement_pct": imp,
+            "mlt": pred, "mql": BL_BED * (1 + bed_eff / 100), "apd": BL * 0.4,
+            "throughput": min(160.0, 100.0 * (1 - d_bed * 0.5)),
+            "risk_index": 45.0 * (pred / BL),
+            "impl_cost": impl_cost, "annual_saving": annual_sav, "roi_months": roi_mo,
+            "ci_low": pred * 0.88, "ci_high": pred * 1.12,
+            "deltas": {
+                "Specialist Allocation": d_spec,
+                "Diagnostic Speed":      d_diag,
+                "Bed Capacity":          d_bed,
+                "Nursing Staff":         d_nursing,
+                "Triage Automation":     d_triage,
+                "Fast Track":            d_fast,
+            },
+            "baseline": BL,
+            "mediators": {
+                "Treatment Duration":  (BL,           pred,                      "days"),
+                "Bed Occupancy":       (BL_BED,       BL_BED * (1 + bed_eff / 100), "%"),
+                "Specialist Assigned": (BL_SPEC * 100, spec_prob * 100,           "%"),
+            },
+        }
+
+    # ── Header banner ──────────────────────────────────────────────────────────
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+
+    _sim_domain_lbl = ("Manufacturing — Prihir Enterprises"
+                       if _is_mfg_sim else "Healthcare — Hospital Admissions")
+    _sim_bl      = 8.2  if _is_mfg_sim else 5.27
+    _sim_out_lbl = "Shipment Delay" if _is_mfg_sim else "Treatment Duration"
+    _sim_f1      = dag_metrics.get("f1_score", 1.0) if "dag_metrics" in dir() else 1.0
+    _conf_lbl    = "HIGH" if _sim_f1 >= 0.9 else ("MODERATE" if _sim_f1 >= 0.7 else "LOW")
+    _conf_col    = "#059669" if _sim_f1 >= 0.9 else ("#D97706" if _sim_f1 >= 0.7 else "#DC2626")
+
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#F0FDF4 0%,#ECFDF5 100%);'
+        f'border:1px solid #BBF7D0;border-radius:14px;padding:18px 24px;margin-bottom:20px;'
+        f'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">'
+        f'<div>'
+        f'<div style="font-size:1.25rem;font-weight:800;color:#1E293B;margin-bottom:3px;">'
+        f'⚡ What-If Causal Simulator</div>'
+        f'<div style="font-size:0.85rem;color:#64748B;">Adjust levers to see real-time outcome '
+        f'predictions from the discovered causal model.</div>'
+        f'</div>'
+        f'<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">'
+        f'<div style="text-align:center;">'
+        f'<div style="font-size:0.68rem;color:#64748B;font-weight:700;text-transform:uppercase;">Domain</div>'
+        f'<div style="font-size:0.82rem;font-weight:700;color:#1E293B;">{_sim_domain_lbl}</div>'
+        f'</div>'
+        f'<div style="text-align:center;">'
+        f'<div style="font-size:0.68rem;color:#64748B;font-weight:700;text-transform:uppercase;">'
+        f'Baseline {_sim_out_lbl}</div>'
+        f'<div style="font-size:0.82rem;font-weight:700;color:#1E293B;">{_sim_bl:.2f} days</div>'
+        f'</div>'
+        f'<div style="text-align:center;">'
+        f'<div style="font-size:0.68rem;color:#64748B;font-weight:700;text-transform:uppercase;">'
+        f'Model Confidence</div>'
+        f'<div style="font-size:0.82rem;font-weight:700;color:{_conf_col};">'
+        f'{_conf_lbl} · F1={_sim_f1:.2f}</div>'
+        f'</div>'
+        f'<div style="display:flex;align-items:center;gap:5px;">'
+        f'<span style="width:8px;height:8px;background:#10B981;border-radius:50%;'
+        f'box-shadow:0 0 0 3px rgba(16,185,129,0.22);display:inline-block;"></span>'
+        f'<span style="font-size:0.78rem;font-weight:600;color:#059669;">Live Engine Active</span>'
+        f'</div>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Two-column layout ──────────────────────────────────────────────────────
+    _lcol, _rcol = st.columns([1.1, 1.9])
+
+    with _lcol:
+        st.markdown(
+            "<h5 style='color:#1E293B;margin-bottom:6px;font-size:0.95rem;'>"
+            "🎛️ Intervention Levers</h5>",
+            unsafe_allow_html=True,
+        )
+
+        if st.button("🔄 Reset to Baseline", use_container_width=True, key="sim_reset_btn"):
+            st.session_state[_sim_key] = dict(_MFG_DEFAULTS if _is_mfg_sim else _HC_DEFAULTS)
+            st.rerun()
+
+        _lv = st.session_state[_sim_key]
+
+        if _is_mfg_sim:
+            with st.expander("🏭 Supplier & Procurement", expanded=True):
+                _lv["supplier_reliability_pct"] = st.slider(
+                    "Supplier B Allocation (%)", 0, 100,
+                    _lv["supplier_reliability_pct"], 5, key="lv_sup_rel",
+                    help="60% currently go to Supplier A (unreliable). Shift more to Supplier B.",
+                )
+                _lv["export_flag_reduction"] = st.toggle(
+                    "Streamline Export Documentation",
+                    _lv["export_flag_reduction"], key="lv_exp_flag",
+                    help="Reduces export-related approval delays ~35%",
+                )
+            with st.expander("⚙️ Machine & Capacity", expanded=True):
+                _lv["machine_capacity_expanded"] = st.toggle(
+                    "Expand Machine Capacity",
+                    _lv["machine_capacity_expanded"], key="lv_mach_cap",
+                    help="Adds processing units, reduces Machine Queue ~40%",
+                )
+                _lv["additional_workforce"] = st.slider(
+                    "Additional Workforce", 0, 20,
+                    _lv["additional_workforce"], 1, key="lv_workforce",
+                    help="Each additional worker reduces queue ~0.3 units",
+                )
+            with st.expander("📋 Approvals & Process", expanded=False):
+                _lv["approval_automation"] = st.toggle(
+                    "Automate Approval Steps",
+                    _lv["approval_automation"], key="lv_appr_auto",
+                    help="Reduces Approval Duration ~50%",
+                )
+                _lv["order_batching"] = st.toggle(
+                    "Enable Order Batching",
+                    _lv["order_batching"], key="lv_batching",
+                    help="Reduces order complexity spikes ~20%",
+                )
+            with st.expander("🚚 Logistics & Delivery", expanded=False):
+                _lv["carrier_express_pct"] = st.slider(
+                    "Express Carrier Usage (%)", 0, 100,
+                    _lv["carrier_express_pct"], 5, key="lv_carrier",
+                    help="Each 10% increase reduces delay ~0.08 days",
+                )
+                _lv["material_lead_time_mode"] = st.radio(
+                    "Material Lead Time Strategy",
+                    ["Current", "Reduced (-20%)", "Optimised (-40%)"],
+                    index=["Current", "Reduced (-20%)", "Optimised (-40%)"].index(
+                        _lv["material_lead_time_mode"]),
+                    key="lv_lt_mode",
+                    help="Negotiate faster material delivery contracts",
+                )
+        else:
+            with st.expander("🏥 Specialist & Allocation", expanded=True):
+                _lv["specialist_allocation_pct"] = st.slider(
+                    "Specialist Allocation (%)", 0, 100,
+                    _lv["specialist_allocation_pct"], 5, key="lv_spec_alloc",
+                    help="Baseline: 45% of cases assigned a specialist",
+                )
+                _lv["fast_track_eligibility_pct"] = st.slider(
+                    "Fast Track Eligibility (%)", 0, 100,
+                    _lv["fast_track_eligibility_pct"], 5, key="lv_fast_track",
+                    help="Baseline: 20% on fast-track pathway",
+                )
+            with st.expander("🛏️ Capacity & Staff", expanded=True):
+                _lv["bed_capacity_expanded"] = st.toggle(
+                    "Expand Bed Capacity",
+                    _lv["bed_capacity_expanded"], key="lv_bed_cap",
+                    help="Adds beds, reduces occupancy pressure",
+                )
+                _lv["additional_nursing_staff"] = st.slider(
+                    "Additional Nursing Staff", 0, 20,
+                    _lv["additional_nursing_staff"], 1, key="lv_nursing",
+                    help="Each nurse reduces duration ~0.15 days",
+                )
+            with st.expander("⚡ Process & Diagnostics", expanded=False):
+                _lv["triage_automation"] = st.toggle(
+                    "Automate Triage Scoring",
+                    _lv["triage_automation"], key="lv_triage_auto",
+                    help="Reduces triage-to-treatment delay ~0.3 days",
+                )
+                _lv["diagnostic_speed_mode"] = st.radio(
+                    "Diagnostic Speed Mode",
+                    ["Standard", "Fast (-20%)", "Express (-35%)"],
+                    index=["Standard", "Fast (-20%)", "Express (-35%)"].index(
+                        _lv["diagnostic_speed_mode"]),
+                    key="lv_diag_speed",
+                )
+
+        # Active-intervention summary panel
+        _defaults = _MFG_DEFAULTS if _is_mfg_sim else _HC_DEFAULTS
+        _changes  = [(k, _defaults[k], v) for k, v in _lv.items() if v != _defaults[k]]
+        if _changes:
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+            _chg_html = (
+                f'<div style="background:#F8FAFC;border:1px solid {BORDER};'
+                f'border-radius:8px;padding:10px 12px;">'
+                f'<div style="font-size:0.7rem;font-weight:700;color:{MUTED};'
+                f'text-transform:uppercase;margin-bottom:5px;">Active Interventions</div>'
+            )
+            for _k, _bv, _cv in _changes:
+                _klbl = _k.replace("_", " ").title()
+                _bstr = (f"{_bv}%" if isinstance(_bv, int) and "pct" in _k
+                         else ("ON" if _bv is True else ("OFF" if _bv is False else str(_bv))))
+                _cstr = (f"{_cv}%" if isinstance(_cv, int) and "pct" in _k
+                         else ("ON" if _cv is True else ("OFF" if _cv is False else str(_cv))))
+                _chg_html += (
+                    f'<div style="font-size:0.78rem;color:#059669;margin-bottom:1px;">'
+                    f'✓ {_klbl}: {_bstr} → {_cstr}</div>'
+                )
+            _chg_html += "</div>"
+            st.markdown(_chg_html, unsafe_allow_html=True)
+        else:
+            st.markdown(
+                f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;'
+                f'padding:8px 12px;font-size:0.78rem;color:{MUTED};margin-top:6px;">'
+                f'All levers at baseline — adjust above to simulate.</div>',
+                unsafe_allow_html=True,
+            )
+
+    # Compute predictions from current lever state
+    _res = _compute_mfg(_lv) if _is_mfg_sim else _compute_hc(_lv)
+
+    with _rcol:
+        st.markdown(
+            "<h5 style='color:#1E293B;margin-bottom:6px;font-size:0.95rem;'>"
+            "📊 Predicted Outcomes</h5>",
+            unsafe_allow_html=True,
+        )
+
+        # ── Hero KPI + impact badge ───────────────────────────────────────────
+        _imp  = _res["improvement_pct"]
+        _pred = _res["predicted"]
+        _bl   = _res["baseline"]
+
+        if _imp > 25:
+            _badge_col, _badge_lbl = "#059669", "HIGH IMPACT"
+        elif _imp > 10:
+            _badge_col, _badge_lbl = "#D97706", "MODERATE IMPACT"
+        elif _imp > 0:
+            _badge_col, _badge_lbl = "#EA580C", "LOW IMPACT"
+        else:
+            _badge_col, _badge_lbl = "#DC2626", "NO IMPROVEMENT"
+
+        _hc1, _hc2 = st.columns([2, 1])
+        with _hc1:
+            st.metric(
+                label=f"Predicted {_sim_out_lbl}",
+                value=f"{_pred:.1f} days",
+                delta=f"{-_imp:.1f}% vs baseline",
+                delta_color="inverse",
+            )
+            st.markdown(
+                f'<div style="font-size:0.75rem;color:{MUTED};font-style:italic;margin-top:-6px;">'
+                f'95% CI: [{_res["ci_low"]:.1f} – {_res["ci_high"]:.1f} days]</div>',
+                unsafe_allow_html=True,
+            )
+        with _hc2:
+            st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="background:{_badge_col};color:#fff;border-radius:8px;'
+                f'padding:7px 10px;font-size:0.72rem;font-weight:700;text-align:center;">'
+                f'{_badge_lbl}</div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── Secondary KPI row ─────────────────────────────────────────────────
+        _k1, _k2, _k3 = st.columns(3)
+        with _k1:
+            st.metric("Throughput", f"{_res['throughput']:.0f}/day",
+                      delta=f"+{_res['throughput'] - 100:.0f}")
+        with _k2:
+            st.metric("Risk Index", f"{_res['risk_index']:.1f}",
+                      delta=f"{_res['risk_index'] - 45:.1f}", delta_color="inverse")
+        with _k3:
+            _roi     = _res["roi_months"]
+            _roi_str = f"{_roi:.1f} mo" if _roi < 60 else "N/A"
+            st.metric("ROI Payback", _roi_str,
+                      delta=f"${_res['annual_saving']:,.0f}/yr saved")
+
+        # ── Causal Effect Decomposition (waterfall) ───────────────────────────
+        st.markdown(
+            "<div style='height:6px;'></div>"
+            "<div style='font-size:0.82rem;font-weight:700;color:#1E293B;margin-bottom:2px;'>"
+            "📡 Causal Effect Decomposition</div>",
+            unsafe_allow_html=True,
+        )
+        _wf_labels  = [f"Baseline ({_bl:.1f}d)"] + list(_res["deltas"].keys()) + ["Predicted"]
+        _wf_values  = [_bl] + list(_res["deltas"].values()) + [_pred]
+        _wf_measure = ["absolute"] + ["relative"] * len(_res["deltas"]) + ["total"]
+
+        _fig_wf = go.Figure(go.Waterfall(
+            orientation="v",
+            measure=_wf_measure,
+            x=_wf_labels,
+            y=_wf_values,
+            connector={"line": {"color": BORDER, "width": 1, "dash": "dot"}},
+            decreasing={"marker": {"color": SUCCESS}},
+            increasing={"marker": {"color": ERROR}},
+            totals={"marker": {"color": INFO}},
+            text=[
+                f"{v:+.2f}d" if i not in (0, len(_wf_values) - 1) else f"{v:.1f}d"
+                for i, v in enumerate(_wf_values)
+            ],
+            textposition="outside",
+            textfont={"size": 10},
+        ))
+        _wfl = dict(**PLOTLY_LAYOUT)
+        _wfl.update(dict(
+            height=300,
+            margin=dict(l=10, r=10, t=20, b=50),
+            yaxis={"title": "Days", "gridcolor": BORDER, "tickformat": ".1f"},
+            xaxis={"tickfont": {"size": 9}},
+            showlegend=False,
+        ))
+        _fig_wf.update_layout(**_wfl)
+        st.plotly_chart(_fig_wf, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
+
+        # ── Mediator state table ──────────────────────────────────────────────
+        st.markdown(
+            "<div style='font-size:0.82rem;font-weight:700;color:#1E293B;margin-bottom:5px;'>"
+            "🔗 Mediator Variable States</div>",
+            unsafe_allow_html=True,
+        )
+        _med_html = (
+            '<div style="overflow-x:auto;">'
+            '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">'
+            '<thead><tr>'
+            f'<th style="padding:7px 8px;text-align:left;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Variable</th>'
+            f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Baseline</th>'
+            f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Predicted</th>'
+            f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Change</th>'
+            '</tr></thead><tbody>'
+        )
+        for _var, (_bv, _cv, _unit) in _res["mediators"].items():
+            _delta = _cv - _bv
+            _dstr  = f"{_delta:+.2f} {_unit}"
+            _dcol  = (SUCCESS if _delta < -0.001 else (ERROR if _delta > 0.001 else MUTED))
+            _med_html += (
+                f'<tr style="border-bottom:1px solid {BORDER};">'
+                f'<td style="padding:6px 8px;color:{TEXT};font-weight:500;">{_var}</td>'
+                f'<td style="padding:6px 8px;text-align:right;color:{MUTED};">{_bv:.2f} {_unit}</td>'
+                f'<td style="padding:6px 8px;text-align:right;color:{TEXT};font-weight:600;">{_cv:.2f} {_unit}</td>'
+                f'<td style="padding:6px 8px;text-align:right;font-weight:700;color:{_dcol};">{_dstr}</td>'
+                f'</tr>'
+            )
+        _med_html += "</tbody></table></div>"
+        st.markdown(_med_html, unsafe_allow_html=True)
+
+        # ── ROI panel ─────────────────────────────────────────────────────────
+        if _res["impl_cost"] > 0:
+            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;'
+                f'padding:12px 16px;">'
+                f'<div style="font-size:0.8rem;font-weight:700;color:#1D4ED8;margin-bottom:7px;">'
+                f'💰 Business Impact Estimate</div>'
+                f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">'
+                f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
+                f'text-transform:uppercase;">Impl. Cost</div>'
+                f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">'
+                f'${_res["impl_cost"]:,.0f}</div></div>'
+                f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
+                f'text-transform:uppercase;">Annual Savings</div>'
+                f'<div style="font-size:0.95rem;font-weight:700;color:{SUCCESS};">'
+                f'${_res["annual_saving"]:,.0f}/yr</div></div>'
+                f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
+                f'text-transform:uppercase;">Payback</div>'
+                f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">{_roi_str}</div></div>'
+                f'</div>'
+                f'<div style="font-size:0.68rem;color:{SUBTLE};margin-top:5px;font-style:italic;">'
+                f'*SEM-based estimate · $1,200/day/case · 3,000 cases/yr</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ── Scenario Comparison (full width) ──────────────────────────────────────
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<h5 style='color:#1E293B;margin-bottom:10px;font-size:0.95rem;'>"
+        "📋 Scenario Comparison</h5>",
+        unsafe_allow_html=True,
+    )
+
+    _sc_in, _sc_sv, _sc_cl = st.columns([3, 1, 1])
+    with _sc_in:
+        _save_name = st.text_input(
+            "Scenario name", placeholder="e.g. Full Automation + Express",
+            key="sim_save_name_input", label_visibility="collapsed",
+        )
+    with _sc_sv:
+        if st.button("💾 Save", use_container_width=True, key="sim_save_btn"):
+            if _save_name and len(st.session_state["sim_scenarios"]) < 4:
+                st.session_state["sim_scenarios"].append({
+                    "name":   _save_name,
+                    "levers": dict(_lv),
+                    "result": {k: v for k, v in _res.items()
+                               if k not in ("mediators", "deltas")},
+                })
+                st.rerun()
+            elif len(st.session_state["sim_scenarios"]) >= 4:
+                st.warning("Max 4 scenarios — clear some first.")
+    with _sc_cl:
+        if st.session_state["sim_scenarios"]:
+            if st.button("🗑️ Clear", use_container_width=True, key="sim_clear_btn"):
+                st.session_state["sim_scenarios"] = []
+                st.rerun()
+
+    _scenarios = st.session_state["sim_scenarios"]
+    if _scenarios:
+        _sc_rows = []
+        for _s in _scenarios:
+            _r    = _s["result"]
+            _ri   = f"{_r['roi_months']:.1f} mo" if _r['roi_months'] < 60 else "N/A"
+            _sc_rows.append({
+                "Scenario":        _s["name"],
+                "Pred. Delay (d)": f"{_r['predicted']:.1f}",
+                "Improvement":     f"{_r['improvement_pct']:.1f}%",
+                "Throughput":      f"{_r['throughput']:.0f}/day",
+                "Risk Index":      f"{_r['risk_index']:.1f}",
+                "ROI Payback":     _ri,
+                "Impl. Cost":      f"${_r['impl_cost']:,.0f}",
+            })
+        st.dataframe(pd.DataFrame(_sc_rows), use_container_width=True, hide_index=True)
+
+        _sc_names  = ["Baseline"] + [s["name"] for s in _scenarios]
+        _sc_delays = [_bl]        + [s["result"]["predicted"] for s in _scenarios]
+        _sc_colors = [MUTED]      + [
+            (SUCCESS if s["result"]["improvement_pct"] > 10 else WARNING)
+            for s in _scenarios
+        ]
+        _fig_sc = go.Figure(go.Bar(
+            x=_sc_names, y=_sc_delays,
+            marker_color=_sc_colors,
+            text=[f"{v:.1f}d" for v in _sc_delays],
+            textposition="outside",
+        ))
+        _scl = dict(**PLOTLY_LAYOUT)
+        _scl.update(dict(
+            height=260, showlegend=False,
+            margin=dict(l=10, r=10, t=20, b=20),
+            yaxis={"title": f"{_sim_out_lbl} (days)", "gridcolor": BORDER},
+        ))
+        _fig_sc.update_layout(**_scl)
+        st.plotly_chart(_fig_sc, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
+    else:
+        st.markdown(
+            f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;'
+            f'padding:14px;text-align:center;color:{MUTED};font-size:0.82rem;">'
+            f'Save up to 4 named scenarios to compare them side-by-side.</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Live Causal DAG ───────────────────────────────────────────────────────
+    with st.expander("🔬 Live Causal Graph — Intervention Propagation",
+                     expanded=False):
+        if _is_mfg_sim:
+            _dag_nodes = [
+                {"id": "order_complexity",      "x": 0.0, "y": 3.0, "role": "Confounder"},
+                {"id": "supplier_a",            "x": 0.0, "y": 0.0, "role": "Treatment"},
+                {"id": "material_lead_time",    "x": 2.5, "y": 0.0, "role": "Mediator"},
+                {"id": "machine_queue",         "x": 2.5, "y": 3.0, "role": "Mediator"},
+                {"id": "approval_duration",     "x": 5.0, "y": 2.0, "role": "Mediator"},
+                {"id": "export_flag",           "x": 2.5, "y": 5.0, "role": "Confounder"},
+                {"id": "carrier_express",       "x": 5.0, "y": 0.0, "role": "Treatment"},
+                {"id": "shipment_delay",        "x": 7.5, "y": 2.0, "role": "Outcome"},
+            ]
+            _dag_edges = [
+                ("supplier_a",         "material_lead_time",
+                 _lv["supplier_reliability_pct"] != 40),
+                ("order_complexity",   "machine_queue",  False),
+                ("machine_queue",      "approval_duration",
+                 _lv["machine_capacity_expanded"] or _lv["additional_workforce"] > 0),
+                ("export_flag",        "approval_duration",  _lv["export_flag_reduction"]),
+                ("material_lead_time", "shipment_delay",
+                 _lv["material_lead_time_mode"] != "Current" or
+                 _lv["supplier_reliability_pct"] != 40),
+                ("approval_duration",  "shipment_delay",
+                 _lv["approval_automation"] or _lv["export_flag_reduction"]),
+                ("carrier_express",    "shipment_delay",  _lv["carrier_express_pct"] != 15),
+                ("order_complexity",   "shipment_delay",  False),
+            ]
+        else:
+            _dag_nodes = [
+                {"id": "patient_complexity",     "x": 0.0, "y": 1.0, "role": "Confounder"},
+                {"id": "specialist_requirement", "x": 0.0, "y": 3.0, "role": "Treatment"},
+                {"id": "bed_occupancy",          "x": 3.0, "y": 2.0, "role": "Mediator"},
+                {"id": "triage_score",           "x": 1.5, "y": 0.0, "role": "Mediator"},
+                {"id": "treatment_duration",     "x": 6.0, "y": 2.0, "role": "Outcome"},
+            ]
+            _dag_edges = [
+                ("patient_complexity",     "treatment_duration",    False),
+                ("specialist_requirement", "treatment_duration",
+                 _lv["specialist_allocation_pct"] != 45),
+                ("bed_occupancy",          "treatment_duration",    _lv["bed_capacity_expanded"]),
+                ("triage_score",           "specialist_requirement", _lv["triage_automation"]),
+            ]
+
+        _role_colors = {
+            "Confounder": WARNING, "Treatment": PRIMARY, "Mediator": INFO, "Outcome": ERROR,
+        }
+        _nxs = {n["id"]: n["x"] for n in _dag_nodes}
+        _nys = {n["id"]: n["y"] for n in _dag_nodes}
+
+        _fig_dag = go.Figure()
+        for _src, _dst, _active in _dag_edges:
+            _fig_dag.add_trace(go.Scatter(
+                x=[_nxs[_src], _nxs[_dst], None],
+                y=[_nys[_src], _nys[_dst], None],
+                mode="lines",
+                line=dict(color=PRIMARY if _active else "#CBD5E1",
+                          width=2.5 if _active else 1.2),
+                showlegend=False, hoverinfo="skip",
+            ))
+        for _n in _dag_nodes:
+            _ncol = _role_colors.get(_n["role"], MUTED)
+            _fig_dag.add_trace(go.Scatter(
+                x=[_n["x"]], y=[_n["y"]],
+                mode="markers+text",
+                marker=dict(size=42, color=_ncol, opacity=0.88,
+                            line=dict(color="white", width=2.5)),
+                text=[_n["id"].replace("_", "<br>")],
+                textposition="bottom center",
+                textfont=dict(size=8, color=TEXT),
+                showlegend=False,
+                hovertemplate=f"<b>{_n['id']}</b><br>Role: {_n['role']}<extra></extra>",
+            ))
+        _dagl = dict(**PLOTLY_LAYOUT)
+        _dagl.update(dict(
+            height=380, plot_bgcolor="#FAFBFC",
+            margin=dict(l=10, r=10, t=20, b=60),
+            xaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+            yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+        ))
+        _fig_dag.update_layout(**_dagl)
+
+        _leg_html = '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;">'
+        for _role, _col in _role_colors.items():
+            _leg_html += (
+                f'<div style="display:flex;align-items:center;gap:4px;">'
+                f'<span style="width:11px;height:11px;border-radius:50%;background:{_col};'
+                f'display:inline-block;"></span>'
+                f'<span style="font-size:0.75rem;color:{MUTED};">{_role}</span></div>'
+            )
+        _leg_html += (
+            f'<div style="display:flex;align-items:center;gap:4px;">'
+            f'<span style="width:18px;height:2px;background:{PRIMARY};display:inline-block;">'
+            f'</span><span style="font-size:0.75rem;color:{MUTED};">Active path</span></div>'
+            f'<div style="display:flex;align-items:center;gap:4px;">'
+            f'<span style="width:18px;height:2px;background:#CBD5E1;display:inline-block;">'
+            f'</span><span style="font-size:0.75rem;color:{MUTED};">Passive edge</span></div>'
+            '</div>'
+        )
+        st.markdown(_leg_html, unsafe_allow_html=True)
+        st.plotly_chart(_fig_dag, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
 
     # SECTION 4: Recovery Visualization (Horizontal Chart)
     if not coefs.empty:
