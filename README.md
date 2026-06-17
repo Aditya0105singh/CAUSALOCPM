@@ -68,9 +68,6 @@ flowchart TD
     P2 -.->|DAG & Ablation Study| Dashboard
     P4 -->|Backdoor Adjustment Results| Dashboard
     P5 -->|Case-level SHAP Values| Dashboard
-
-    classDef phase fill:#f9f9f9,stroke:#333,stroke-width:1px;
-    class P1,P2,P3,P4,P5 phase;
 ```
 
 ---
