@@ -2813,7 +2813,7 @@ with tab4:
             decreasing=dict(marker_color=SUCCESS),
             totals=dict(marker_color="#334155"),
             texttemplate="%{y:+.2f}", textposition="outside",
-            textfont=dict(size=12, weight='bold')
+            textfont=dict(size=12)
         ))
         fig_wf.add_hline(y=actual, line_dash="dash", line_color="#94A3B8",
                           annotation_text=f"Actual: {actual:.2f}",
