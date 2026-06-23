@@ -1647,8 +1647,8 @@ with tab1:
             icon="📊", tag="OCEL 2.0", tag_color=INFO,
         )
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("📦 Total Events", f"{len(df):,}", delta="↑ 5% wk/wk")
-        c2.metric("🛡️ Treated Cases", f"{int(df[treatment_var].sum()):,}", delta="↑ 2% wk/wk")
+        c1.metric("📦 Total Events", f"{len(df):,}", delta="5% wk/wk")
+        c2.metric("🛡️ Treated Cases", f"{int(df[treatment_var].sum()):,}", delta="2% wk/wk")
         c3.metric("⏱ Avg Delay", f"{df[outcome_var].mean():.2f} days", delta="-12% vs baseline", delta_color="inverse")
         c4.metric("📉 Std Dev", f"{df[outcome_var].std():.2f} days", delta="-4% variance", delta_color="inverse")
 
