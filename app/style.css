@@ -431,7 +431,7 @@ ul[role="listbox"] {
 [data-testid="stTooltipContent"],
 [data-testid="stTooltipContent"] p,
 [data-testid="stTooltipContent"] span {
-    color: #F8FAFC !important;
+    color: #0F172A !important;
 }
 
 /* ── SIDEBAR "VIBE CODED" ENHANCEMENTS ───────────────────────────────────── */
