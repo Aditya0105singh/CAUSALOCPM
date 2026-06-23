@@ -68,7 +68,7 @@ def _sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
 
 
-def generate_data(n: int = 3000, seed: int = 42) -> pd.DataFrame:
+def generate_data(n: int = 15000, seed: int = 42) -> pd.DataFrame:
     """
     Generate synthetic hospital admission event log with planted causal structure.
 
@@ -139,19 +139,21 @@ def generate_data(n: int = 3000, seed: int = 42) -> pd.DataFrame:
         'timestamp':           timestamps,
     })
 
+    return df
+
+
+def load_or_generate(n: int = 15000, seed: int = 42) -> pd.DataFrame:
+    """Load cached CSV if present, otherwise generate and save."""
+    if DATA_PATH.exists():
+        return pd.read_csv(DATA_PATH, parse_dates=['timestamp'])
+    df = generate_data(n=n, seed=seed)
     df.to_csv(DATA_PATH, index=False)
     return df
 
 
-def load_or_generate(n: int = 3000, seed: int = 42) -> pd.DataFrame:
-    """Load cached CSV if present, otherwise generate and save."""
-    if DATA_PATH.exists():
-        return pd.read_csv(DATA_PATH, parse_dates=['timestamp'])
-    return generate_data(n=n, seed=seed)
-
-
 if __name__ == "__main__":
     df = generate_data()
+    df.to_csv(DATA_PATH, index=False)
     naive = (df[df.specialist_required == 1].length_of_stay.mean()
              - df[df.specialist_required == 0].length_of_stay.mean())
     print("[CONFOUNDING ANALYSIS — HEALTHCARE]")

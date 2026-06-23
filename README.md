@@ -27,7 +27,8 @@ Naive analysis overstates Supplier-A's causal contribution to delays by ~20%. **
 - **Structural Causal Modeling**: Fits mixed SCMs (Logistic, Linear, Gradient Boosting) without global linearity assumptions.
 - **Counterfactual Policy Simulation**: DoWhy-powered backdoor adjustment and sensitivity analysis across random seeds.
 - **SCM-Grounded Attribution**: Understand case-level root causes using advanced SHAP techniques applied directly to structural equations.
-- **Interactive Streamlit Dashboard**: A comprehensive 7-tab UI to explore event logs, validate structural models, and simulate policies.
+- **Groq-Powered Decision Intelligence Copilot**: An integrated LLM agent (Llama 3.1 8B via Groq) that translates complex causal math into instant, board-ready executive summaries.
+- **Interactive Streamlit Dashboard**: A comprehensive 8-tab UI to explore event logs, validate structural models, simulate policies, and interact with the AI Copilot.
 
 ---
 
@@ -120,7 +121,7 @@ streamlit run app/dashboard.py
 
 ## The Dashboard Experience
 
-The interactive dashboard is divided into 7 specialized tabs:
+The interactive dashboard is divided into 8 specialized tabs:
 
 1. **Event Log**: View event log summaries and sample OCEL object interaction graphs.
 2. **Causal Discovery**: Inspect the learned DAG, highlighting confounding paths and ablation studies.
@@ -129,6 +130,7 @@ The interactive dashboard is divided into 7 specialized tabs:
 5. **Case Attribution**: SCM-grounded SHAP waterfall charts for actionable, case-by-case insights.
 6. **Real Data**: Validate against the BPI Challenge 2019 public benchmark.
 7. **Domain Comparison**: Side-by-side generalisation analysis between Manufacturing and Healthcare domains.
+8. **Causal Copilot**: A blazing-fast, Groq-powered conversational agent that contextualizes the Double ML results and provides actionable business recommendations (features an 'Executive Mode' for bottom-line summaries).
 
 ---
 
@@ -150,7 +152,7 @@ CausalOCPM rigorously validates its findings using **synthetic event logs with p
 
 While tools like **PM4Py** excel at descriptive process analytics and **DoWhy/CausalNex** handle effect estimation, *no public tool integrates them.* 
 
-**CausalOCPM is the first unified application to combine object-centric event logs, automated causal discovery, SCM fitting, and interactive counterfactual policy simulation** — all rigorously validated against planted ground truth across multiple domains.
+**CausalOCPM is the first unified application to combine object-centric event logs, automated causal discovery, SCM fitting, interactive counterfactual policy simulation, and a real-time LLM Copilot** — all rigorously validated against planted ground truth across multiple domains. The addition of the ultra-fast Groq-powered Copilot bridges the gap between complex causal mathematics and executive decision-making.
 
 ---
 

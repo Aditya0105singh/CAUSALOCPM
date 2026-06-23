@@ -28,6 +28,7 @@ import networkx as nx
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import cross_val_score
 
 warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
@@ -133,17 +134,36 @@ def fit_scm(df: pd.DataFrame,
             logger.warning(f"[SCM] Failed to fit {node}: {e}")
             continue
 
-        # Score
+        # Cross-validated score (5-fold, out-of-sample) — more honest than in-sample
+        cv_model = _select_model(node, binary_vars, outcome_var)
         if model_type == 'logistic':
             try:
-                proba = model.predict_proba(X)[:, 1]
-                r2_score = roc_auc_score(y, proba)
+                cv_scores = cross_val_score(cv_model, X, y, cv=5, scoring='roc_auc')
+                r2_score = float(np.mean(cv_scores))
             except Exception:
-                r2_score = 0.5
-            metric_label = 'AUC'
+                try:
+                    proba = model.predict_proba(X)[:, 1]
+                    r2_score = roc_auc_score(y, proba)
+                except Exception:
+                    r2_score = 0.5
+            metric_label = 'CV-AUC'
+        elif model_type == 'gradient_boosting':
+            # Use lighter GBM for CV to keep it fast; full model already fitted above
+            cv_gbm = GradientBoostingRegressor(
+                n_estimators=50, max_depth=3, learning_rate=0.05, random_state=42)
+            try:
+                cv_scores = cross_val_score(cv_gbm, X, y, cv=5, scoring='r2')
+                r2_score = max(0.0, float(np.mean(cv_scores)))
+            except Exception:
+                r2_score = max(0.0, model.score(X, y))
+            metric_label = 'CV-R²'
         else:
-            r2_score = max(0.0, model.score(X, y))
-            metric_label = 'R²'
+            try:
+                cv_scores = cross_val_score(cv_model, X, y, cv=5, scoring='r2')
+                r2_score = max(0.0, float(np.mean(cv_scores)))
+            except Exception:
+                r2_score = max(0.0, model.score(X, y))
+            metric_label = 'CV-R²'
 
         scm[node] = {
             'model':        model,

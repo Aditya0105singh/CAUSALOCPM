@@ -335,3 +335,112 @@ class TestAttribution:
         assert 'actionable_total' in summary
         assert 'structural_total' in summary
         assert 'max_reducible_delay' in summary
+
+
+# ── GROUP 7: BOOTSTRAPPED DISCOVERY ──────────────────────────────────────────
+
+class TestBootstrappedDiscovery:
+
+    def test_dag_has_edge_confidence(self, mfg_dag):
+        edge_confidence = mfg_dag.graph.get('edge_confidence')
+        assert isinstance(edge_confidence, dict) and len(edge_confidence) > 0, (
+            "dag.graph['edge_confidence'] should be a non-empty dict"
+        )
+
+    def test_edge_confidence_in_range(self, mfg_dag):
+        edge_confidence = mfg_dag.graph.get('edge_confidence', {})
+        for edge, conf in edge_confidence.items():
+            assert isinstance(conf, float), (
+                f"Confidence for {edge} is not a float: {type(conf)}"
+            )
+            assert 0.0 <= conf <= 1.0, (
+                f"Confidence for {edge} out of range [0, 1]: {conf}"
+            )
+
+    def test_bootstrap_n_recorded(self, mfg_dag):
+        bootstrap_n = mfg_dag.graph.get('bootstrap_n', 0)
+        assert bootstrap_n > 0, (
+            f"dag.graph['bootstrap_n'] should be > 0, got {bootstrap_n}"
+        )
+
+    def test_ground_truth_edges_high_confidence(self, mfg_dag):
+        edge_confidence = mfg_dag.graph.get('edge_confidence', {})
+        for edge in MFG_EDGES:
+            key = tuple(edge)
+            if key in edge_confidence:
+                conf = edge_confidence[key]
+                assert conf >= 0.5, (
+                    f"Ground truth edge {key} has low confidence: {conf:.3f}"
+                )
+
+
+# ── GROUP 8: DOUBLE ML ESTIMATOR ─────────────────────────────────────────────
+
+class TestDMLEstimator:
+
+    def test_dml_is_primary_method(self, mfg_df, mfg_dag):
+        result = causal_effect(mfg_df, mfg_dag, MFG_TREATMENT,
+                               MFG_OUTCOME, MFG_VARS)
+        assert result.get('method') == 'double_ml', (
+            f"Expected method='double_ml', got method='{result.get('method')}'"
+        )
+
+    def test_dml_ci_is_tight(self, mfg_df, mfg_dag):
+        result = causal_effect(mfg_df, mfg_dag, MFG_TREATMENT,
+                               MFG_OUTCOME, MFG_VARS)
+        ci_high = result.get('ci_high')
+        ci_low = result.get('ci_low')
+        if ci_high is not None and ci_low is not None:
+            width = ci_high - ci_low
+            assert width < 0.5, (
+                f"CI width {width:.3f} is not tight enough (>= 0.5) "
+                f"for n=1000 dataset"
+            )
+
+    def test_method_label_in_compare_effects(self, mfg_df, mfg_dag):
+        result = compare_effects(mfg_df, mfg_dag, MFG_TREATMENT,
+                                  MFG_OUTCOME, MFG_VARS,
+                                  TRUE_SUPPLIER_A_CAUSAL_EFFECT)
+        assert 'method_label' in result, (
+            "compare_effects result should contain key 'method_label'"
+        )
+        assert isinstance(result['method_label'], str) and len(result['method_label']) > 0, (
+            "method_label should be a non-empty string"
+        )
+
+    def test_dml_estimate_close_to_truth(self, mfg_df, mfg_dag):
+        result = causal_effect(mfg_df, mfg_dag, MFG_TREATMENT,
+                               MFG_OUTCOME, MFG_VARS)
+        estimated = result['estimate']
+        assert abs(estimated - TRUE_SUPPLIER_A_CAUSAL_EFFECT) < 0.5, (
+            f"DML estimate {estimated:.3f} deviates from planted truth "
+            f"{TRUE_SUPPLIER_A_CAUSAL_EFFECT:.3f} by more than +/-0.5"
+        )
+
+
+# ── GROUP 9: CROSS-VALIDATED SCORING ─────────────────────────────────────────
+
+class TestCVScoring:
+
+    def test_metric_labels_are_cv(self, mfg_scm):
+        for node, eq in mfg_scm.items():
+            label = eq.get('metric_label', '')
+            assert label.startswith('CV-'), (
+                f"Node '{node}' metric_label='{label}' does not start with 'CV-'"
+            )
+
+    def test_cv_scores_in_valid_range(self, mfg_scm):
+        for node, eq in mfg_scm.items():
+            score = eq.get('r2_score')
+            if score is not None:
+                assert 0.0 <= score <= 1.05, (
+                    f"Node '{node}' r2_score={score:.4f} is outside [0.0, 1.05]"
+                )
+
+    def test_outcome_cv_r2_positive(self, mfg_scm):
+        assert MFG_OUTCOME in mfg_scm, f"{MFG_OUTCOME} not found in SCM"
+        outcome_r2 = mfg_scm[MFG_OUTCOME].get('r2_score', 0.0)
+        assert outcome_r2 > 0.5, (
+            f"Outcome node CV-R²={outcome_r2:.4f} should be > 0.5 "
+            f"with strong signal at n=1000"
+        )
