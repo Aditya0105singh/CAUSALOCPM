@@ -1770,7 +1770,7 @@ with tab1:
             _og_spill_tx = "rgba(15,23,42,0.45)"   if IS_LIGHT else "rgba(255,255,255,0.4)"
             _og_spill_b  = "#0F172A" if IS_LIGHT else "#fff"
 
-            _stc.html(f"""<!DOCTYPE html>
+            st.html(f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box;}}
@@ -2416,7 +2416,7 @@ with tab2:
         _border_color = "#E2E8F0" if IS_LIGHT else "#1A1F2E"
         _ectr_bg = "rgba(255,255,255,0.9)" if IS_LIGHT else "rgba(10,14,23,0.9)"
 
-        _stc.html(f"""<!DOCTYPE html>
+        st.html(f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box;}}
@@ -4985,7 +4985,7 @@ with tab7:
     _history_container = st.container()
 
     # ── JS: Enhance chip buttons with icon badges + subtitles ─────────────────
-    _stc.html("""<script>
+    st.html("""<script>
 (function(){
   var CHIPS=[
     {m:'Why are delays',     i:'📈',t:'Why are delays increasing?',s:'Root cause analysis',  c:'#F59E0B',bg:'#FFFBEB'},
