@@ -849,7 +849,7 @@ def render_quality_report(quality: Dict[str, Any], cleaning_log: list) -> None:
         f'<div><div style="font-size:10px;color:{MUTED};">QUALITY</div>'
         f'<div style="font-size:12px;font-weight:700;color:{sc};">{sl}</div></div></div></div>'
         f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">'
-        f'{_stat(f"{quality[\'n_rows\']:,}", "Rows")}'
+        f'{_stat(format(quality["n_rows"], ","), "Rows")}'
         f'{_stat(quality["n_cols"], "Columns")}'
         f'{_stat(f"{score}/100", "Score", sc)}'
         f'</div>{issues_html}{warns_html}</div>',
