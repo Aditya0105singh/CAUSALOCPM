@@ -4683,12 +4683,12 @@ with tab6:
 # TAB 8 — CAUSAL COPILOT · DECISION INTELLIGENCE ASSISTANT
 # ══════════════════════════════════════════════════════════════════════════════
 with tab7:
-    @st.experimental_fragment
+    @st.fragment
     def render_copilot():
 
         # ── GLOBAL CSS ────────────────────────────────────────────────────────────
         st.markdown("""<style>
-    render_copilot()
+
 
 /* ── Copilot v4 — Premium Design System ── */
 @keyframes cop-pulse  { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -5466,4 +5466,7 @@ with tab7:
             st.code(_dbg4, language="text")
         else:
             st.info("Copilot module not available.")
+
+    # Execute the fragment
+    render_copilot()
 
