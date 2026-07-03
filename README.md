@@ -28,7 +28,7 @@ Naive analysis overstates Supplier-A's causal contribution to delays by ~20%. **
 - **Counterfactual Policy Simulation**: DoWhy-powered backdoor adjustment and sensitivity analysis across random seeds.
 - **SCM-Grounded Attribution**: Understand case-level root causes using advanced SHAP techniques applied directly to structural equations.
 - **Groq-Powered Decision Intelligence Copilot**: An integrated LLM agent (Llama 3.1 8B via Groq) that translates complex causal math into instant, board-ready executive summaries.
-- **Interactive Streamlit Dashboard**: A comprehensive 8-tab UI to explore event logs, validate structural models, simulate policies, and interact with the AI Copilot.
+- **Interactive Streamlit Dashboard**: A 5-tab UI to explore event logs, validate structural models, simulate policies, and interact with the AI Copilot.
 
 ---
 
@@ -121,16 +121,15 @@ streamlit run app/dashboard.py
 
 ## The Dashboard Experience
 
-The interactive dashboard is divided into 8 specialized tabs:
+The interactive dashboard is divided into 5 specialized tabs:
 
-1. **Event Log**: View event log summaries and sample OCEL object interaction graphs.
-2. **Causal Discovery**: Inspect the learned DAG, highlighting confounding paths and ablation studies.
-3. **Structural Model**: Validate the mixed model architecture, equation quality, and coefficient recovery.
-4. **Policy Simulation**: Compare naive correlation vs. causal inference vs. planted ground truth. Includes deep sensitivity analysis.
-5. **Case Attribution**: SCM-grounded SHAP waterfall charts for actionable, case-by-case insights.
-6. **Real Data**: Validate against the BPI Challenge 2019 public benchmark.
-7. **Domain Comparison**: Side-by-side generalisation analysis between Manufacturing and Healthcare domains.
-8. **Causal Copilot**: A blazing-fast, Groq-powered conversational agent that contextualizes the Double ML results and provides actionable business recommendations (features an 'Executive Mode' for bottom-line summaries).
+1. **Overview**: Executive summary — headline causal finding, expected savings, and the top recommended intervention at a glance.
+2. **Data & Discovery**: Event log summaries, the object-type interaction graph, the learned causal DAG, and a domain-knowledge ablation study (autonomous discovery vs. domain-constrained discovery).
+3. **Model & Impact**: Structural equation summary and coefficient recovery (estimated vs. planted ground truth), treatment-effect heterogeneity across confounder subgroups, an interactive what-if policy simulator, and SCM-grounded SHAP waterfall attribution for individual cases.
+4. **Decision Intelligence**: A boardroom-style executive report — naive vs. causal effect, confounding bias removed, ROI-ranked recommended actions, and a condensed cross-domain (Manufacturing vs. Healthcare) validation benchmark.
+5. **Causal Copilot**: A Groq-powered conversational agent (Llama 3.1 8B) that answers free-text questions grounded in the live pipeline output, with quick-action shortcuts and an 'Executive Mode' for bottom-line summaries.
+
+*Not currently wired into the live dashboard:* `data/convert_bpi2019.py` is a standalone converter for the BPI Challenge 2019 public event log, intended for a future real-world validation tab — eliminating the "only tested on synthetic data" objection. It exists as a script but isn't yet connected to the app.
 
 ---
 
