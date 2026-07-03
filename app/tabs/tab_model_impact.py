@@ -84,8 +84,6 @@ if not coefs.empty:
     
 # ── SECTION 2.5: Treatment Effect Heterogeneity (CATE) ──────────────────────
 if not is_custom:
-    from src.phase4_dooperator import compute_cate
-
     _mod_var   = cfg.get("moderator_var", "")
     _mod_label = cfg.get("moderator_label", "Complexity")
     _treat_lbl = cfg["treatment_var"].replace("_", " ").title()
@@ -93,14 +91,10 @@ if not is_custom:
 
     if _mod_var and _mod_var in df.columns:
         with st.spinner("Computing treatment effect heterogeneity…"):
-            _cate_data = compute_cate(
-                df, dag,
-                treatment=cfg["treatment_var"],
-                outcome=cfg["outcome_var"],
-                numeric_vars=cfg["numeric_vars"],
-                moderator=_mod_var,
-                n_bins=3,
-            )
+            # Cached on (domain, n, seed) — this is ~30 Double-ML-with-GBM
+            # fits (~13s); previously recomputed on every rerun (including
+            # tab switches) since it was called uncached, directly.
+            _cate_data = _compute_cate(domain, n_int, seed_int)
 
         if _cate_data:
             st.markdown(

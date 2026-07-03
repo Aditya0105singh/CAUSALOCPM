@@ -644,6 +644,30 @@ def _estimate_effect(domain: str, n: int, seed: int):
     return do_result
 
 
+@st.cache_data(show_spinner=False)
+def _compute_cate(domain: str, n: int, seed: int):
+    """Treatment-effect heterogeneity across confounder subgroups (Model & Impact tab).
+
+    This was previously called uncached directly from tab_model_impact.py —
+    ~30 Double-ML-with-GBM-nuisance-model fits (2 subgroups x cross-fitting
+    splits), ~13s of the reported ~15s reload time, recomputed from scratch
+    on every single script rerun (including tab switches) rather than only
+    when domain/n/seed actually change.
+    """
+    df        = _load_data(domain, n, seed)
+    dag, _, _ = _discover(domain, n, seed)
+    cfg       = _get_domain_config(domain)
+    from src.phase4_dooperator import compute_cate
+    return compute_cate(
+        df, dag,
+        treatment=cfg["treatment_var"],
+        outcome=cfg["outcome_var"],
+        numeric_vars=cfg["numeric_vars"],
+        moderator=cfg["moderator_var"],
+        n_bins=3,
+    )
+
+
 def _get_domain_config(domain: str) -> dict:
     """Return domain-specific variable names, labels, and constants."""
     if domain == "manufacturing":
