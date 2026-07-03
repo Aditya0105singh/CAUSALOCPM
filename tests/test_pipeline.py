@@ -370,10 +370,24 @@ class TestBootstrappedDiscovery:
             f"dag.graph['bootstrap_n'] should be > 0, got {bootstrap_n}"
         )
 
+    # order_complexity -> supplier_a is a deliberately nonlinear (sigmoid-link
+    # + Bernoulli) relationship — correlation-based PC discovery structurally
+    # cannot reliably detect it regardless of sample size, by design: this is
+    # the edge domain knowledge exists to recover (see _MFG_GROUND_TRUTH in
+    # src/phase3_scm.py, which already marks it `nan  # non-linear`). Exempting
+    # it here keeps this test honest about what pure discovery can promise,
+    # instead of tuning the generator until even the nonlinear edge is trivially
+    # linear-detectable — which, at the dashboard's default n=15000, previously
+    # produced a perfect 9/9 pure-discovery recovery that made the "Domain
+    # Knowledge Impact" panel show a permanent +0.0pp gain.
+    NONLINEAR_EDGES = {('order_complexity', 'supplier_a')}
+
     def test_ground_truth_edges_high_confidence(self, mfg_dag):
         edge_confidence = mfg_dag.graph.get('edge_confidence', {})
         for edge in MFG_EDGES:
             key = tuple(edge)
+            if key in self.NONLINEAR_EDGES:
+                continue
             if key in edge_confidence:
                 conf = edge_confidence[key]
                 assert conf >= 0.5, (
