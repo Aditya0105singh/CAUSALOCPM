@@ -155,6 +155,18 @@ While tools like **PM4Py** excel at descriptive process analytics and **DoWhy/Ca
 
 ---
 
+## Limitations
+
+Being explicit about what this framework does *not* guarantee is part of using it responsibly:
+
+- **Causal sufficiency is assumed, not verified.** PC-algorithm discovery assumes no unmeasured confounders. On the synthetic domains this is true by construction (we planted the full causal structure); on real data it is never guaranteed. The [Sensitivity to Unmeasured Confounding](#) analysis (Model & Impact tab) stress-tests this assumption via DoWhy refutation tests (placebo treatment, random common cause, and a sweep across assumed confounder strengths), rather than asking for it to be taken on faith — but a stress test is not a proof.
+- **Domain knowledge can only supplement discovery, not correct a wrong prior.** The domain-knowledge integration step force-adds known-true edges that pure statistical discovery misses (see the Domain Knowledge Ablation Study, Data & Discovery tab) — but it cannot detect or fix an incorrectly specified prior. Garbage in, garbage out still applies to the domain-knowledge layer itself.
+- **Correlation-based discovery (PC / Fisher-Z) is a poor fit for nonlinear relationships.** One planted edge in the manufacturing domain (`order_complexity → supplier_a`, a sigmoid-link confounding relationship) is deliberately left undetectable by pure discovery for exactly this reason — see the ablation study for a concrete, reproducible example rather than an abstract caveat.
+- **Double ML's validity depends on correctly specified nuisance models.** We use cross-fitted Gradient Boosting for the nuisance functions, which is flexible but not guaranteed to be well-specified for every relationship; a badly misspecified nuisance model biases the effect estimate even though the method is "semi-parametric."
+- **Validation is against synthetic ground truth, not real-world data (yet).** Everything above is validated on data where the true causal structure and true effect size are known by construction — the correct way to validate that an *estimator* works, but not the same claim as "this works on a real, messier dataset where nobody knows the answer in advance." `data/convert_bpi2019.py` is a first step toward closing this gap (see note above) but is not yet wired into the live dashboard.
+
+---
+
 ## References
 
 - Pearl, J. (2009). *Causality: Models, Reasoning and Inference*

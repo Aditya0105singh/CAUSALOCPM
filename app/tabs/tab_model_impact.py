@@ -984,6 +984,90 @@ if not coefs.empty:
             render_table(pd.DataFrame(eq_rows))
 
 
+# SECTION 5.5: Sensitivity to Unmeasured Confounding ─────────────────────────
+# Already computed as part of the cached Double ML estimate (do_result) —
+# zero extra cost. Runs DoWhy refutation tests: a placebo-treatment check,
+# a random-common-cause check, and a sweep of estimates under increasing
+# assumed unmeasured-confounding strength (5%-30%). Answers "how much would
+# an unmeasured confounder have to matter before this conclusion flips?"
+# rather than just reporting a single point estimate as if it were beyond
+# doubt.
+if not is_custom and stage_status.get("do_operator") == "ok" and do_result:
+    _sens = do_result.get("sensitivity")
+    if _sens:
+        with st.expander("Sensitivity to Unmeasured Confounding", expanded=False):
+            st.markdown(
+                "Every causal estimate here assumes the discovered DAG captures the "
+                "relevant confounders. This section stress-tests that assumption "
+                "directly, instead of asking you to take it on faith."
+            )
+
+            _placebo_ok = _sens.get("placebo_passes", True)
+            _rc_ok      = _sens.get("random_cause_stable", True)
+            _e_val      = _sens.get("e_value")
+
+            _b1, _b2, _b3 = st.columns(3)
+            with _b1:
+                st.metric(
+                    "Placebo Test",
+                    "Pass" if _placebo_ok else "Fail",
+                    help="Permutes the treatment randomly and re-estimates. A real "
+                         "causal effect should vanish (~0) under a fake, permuted "
+                         "treatment; if it doesn't, the model may be picking up "
+                         "spurious structure rather than a true causal path.",
+                )
+                st.caption(f"Effect under permuted treatment: {_sens.get('placebo_effect', 0):+.3f} days (expect ~0)")
+            with _b2:
+                st.metric(
+                    "Random Common Cause",
+                    "Stable" if _rc_ok else "Unstable",
+                    help="Adds a random, independent variable as a fake confounder "
+                         "and re-estimates. A robust estimate shouldn't move much "
+                         "when an irrelevant variable is added to the adjustment set.",
+                )
+                st.caption(f"Re-estimate with noise variable: {_sens.get('random_cause_estimate', 0):+.3f} days")
+            with _b3:
+                st.metric(
+                    "E-value",
+                    f"{_e_val:.1f}" if _e_val is not None else "—",
+                    help="Minimum strength an unmeasured confounder would need "
+                         "(on the risk-ratio scale) to fully explain away the "
+                         "estimated effect. Higher = more robust.",
+                )
+                st.caption("Confounder strength needed to nullify the result")
+
+            _strengths = _sens.get("confounding_strengths", [])
+            _est_range = _sens.get("estimates_under_confounding", [])
+            if _strengths and _est_range:
+                _fig_sens = go.Figure()
+                _fig_sens.add_trace(go.Scatter(
+                    x=[f"{s:.0%}" for s in _strengths], y=_est_range,
+                    mode="lines+markers", name="Estimate under assumed confounding",
+                    line=dict(color=WARNING, width=2.5), marker=dict(size=8),
+                ))
+                _fig_sens.add_hline(
+                    y=do_result.get("causal", 0), line_dash="dash", line_color=PRIMARY,
+                    annotation_text=f"Reported estimate: {do_result.get('causal', 0):+.2f} days",
+                    annotation_font_color=PRIMARY,
+                )
+                _sens_layout = dict(**PLOTLY_LAYOUT)
+                _sens_layout.update(dict(
+                    title="Causal Estimate vs. Assumed Unmeasured Confounder Strength",
+                    height=320, margin=dict(l=20, r=20, t=40, b=40),
+                    xaxis={"title": "Assumed confounder strength (effect on treatment & outcome)"},
+                    yaxis={"title": f"Estimated effect ({cfg.get('outcome_label','days')})"},
+                    showlegend=False,
+                ))
+                _fig_sens.update_layout(**_sens_layout)
+                try:
+                    st.plotly_chart(_fig_sens, use_container_width=True, theme=None,
+                                    config={'displayModeBar': False})
+                except Exception as _e:
+                    st.error(f"Chart error: {_e}")
+
+            st.caption(_sens.get("verdict", ""))
+
+
 # SECTION — CASE ATTRIBUTION (part of Model & Impact tab)
 st.divider()
 from src.phase5_attribution import (explain_case, get_attribution_summary,
