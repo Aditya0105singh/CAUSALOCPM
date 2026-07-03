@@ -1,7 +1,12 @@
 # ── BOARDROOM HERO CARD ───────────────────────────────────────────────────
 _hero_treatment = cfg.get("treatment_var", "treatment")
 _hero_outcome   = cfg.get("outcome_label", cfg.get("outcome_var", "outcome"))
-_hero_te        = cfg.get("true_effect")
+# The "Recovered Causal Effect" card must show what the pipeline actually
+# estimated (Double ML), not the planted ground-truth constant it's being
+# validated against — those are different numbers and conflating them would
+# make the pipeline's own output indistinguishable from the answer key.
+_hero_te        = (do_result.get("causal") if stage_status.get("do_operator") == "ok" and do_result
+                    else None)
 _hero_baseline  = round(float(df[cfg["outcome_var"]].mean()), 1) if cfg.get("outcome_var") in df.columns else (8.2 if domain == "manufacturing" else 5.27)
 # Reduction % and saving from same formula as simulator and exec report
 if stage_status.get("do_operator") == "ok" and do_result:
@@ -67,7 +72,7 @@ st.markdown(
     f'<div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:16px 24px;min-width:155px;">'
     f'<div style="color:#94A3B8;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Recovered Causal Effect</div>'
     f'<div style="color:#34D399;font-size:1.7rem;font-weight:900;letter-spacing:-0.02em;">{_hero_causal}<span style="font-size:0.95rem;margin-left:4px;">days</span></div>'
-    f'<div style="color:#64748B;font-size:0.72rem;margin-top:4px;">SCM path coefficient · vs ground truth</div></div>'
+    f'<div style="color:#64748B;font-size:0.72rem;margin-top:4px;">Double ML estimate (ATE)</div></div>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True

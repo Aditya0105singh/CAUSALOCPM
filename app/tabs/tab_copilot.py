@@ -474,7 +474,8 @@ if _q_to_process and not _already_answered:
             if _COPILOT_AVAILABLE:
                 if _active_key:
                     _ctx3 = _copilot_build_context(dag=dag, dag_metrics=dag_metrics, scm=scm,
-                                                    coefs=coefs, cfg=cfg, domain=domain, df=df)
+                                                    coefs=coefs, cfg=cfg, domain=domain, df=df,
+                                                    do_result=do_result)
                     _hist3 = [{"q": r["question"], "a": r["exec_text"]}
                               for r in st.session_state["cop_history"][-3:]
                               if "question" in r and "exec_text" in r]
@@ -793,7 +794,8 @@ with _history_container:
 with st.expander("Pipeline Context (LLM input)", expanded=False):
     if _COPILOT_AVAILABLE:
         _dbg4 = _copilot_build_context(dag=dag, dag_metrics=dag_metrics, scm=scm,
-                                        coefs=coefs, cfg=cfg, domain=domain, df=df)
+                                        coefs=coefs, cfg=cfg, domain=domain, df=df,
+                                        do_result=do_result)
         st.code(_dbg4, language="text")
     else:
         st.info("Copilot module not available.")

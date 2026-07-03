@@ -6,6 +6,11 @@ with st.expander("📊 Cross-domain validation benchmark (optional)", expanded=F
 
 _r_treatment   = cfg.get("treatment_var", "treatment")
 _r_outcome_lbl = cfg.get("outcome_label", cfg.get("outcome_var", "outcome"))
+# NOTE: _r_causal (below) is deliberately the planted ground-truth constant,
+# not a live estimate — it's displayed under the label "Ground Truth Effect
+# (Planted)" (see the Key Findings section), which is honest about what it
+# is. Do not swap this for do_result['causal']; that would make an explicitly
+# labeled ground-truth card silently show something else.
 _r_te          = cfg.get("true_effect")
 _r_domain      = domain.replace("_", " ").title()
 _r_f1          = dag_metrics.get("f1_score", 0.0)

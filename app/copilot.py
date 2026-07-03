@@ -55,6 +55,7 @@ def build_context(
     domain: str,
     df: Optional[pd.DataFrame] = None,
     naive_val: Optional[float] = None,
+    do_result: Optional[dict] = None,
 ) -> str:
     """
     Package all live pipeline artifacts into a structured context string for the LLM.
@@ -64,6 +65,7 @@ def build_context(
     treatment   = cfg.get("treatment_var", "treatment")
     outcome     = cfg.get("outcome_var", "outcome")
     true_effect = cfg.get("true_effect")
+    dml_effect  = do_result.get("causal") if do_result else None
     out_label   = cfg.get("outcome_label", outcome)
 
     # ── 1. Causal Graph ───────────────────────────────────────────────────────
@@ -111,15 +113,24 @@ def build_context(
         g0 = df[df[treatment] == 0][outcome].mean()
         naive_val = float(g1 - g0)
 
-    causal_val = true_effect   # best available ground truth for manufacturing/healthcare
+    # Prefer the actual Double ML estimate; only fall back to the planted
+    # ground truth (clearly labeled as such) if that stage hasn't run — never
+    # label the ground truth as if it were the DML output.
+    causal_val    = dml_effect if dml_effect is not None else true_effect
+    causal_label  = "Double ML" if dml_effect is not None else "Planted ground truth — DML unavailable"
     if naive_val is not None and causal_val is not None:
         confounding_removed = naive_val - causal_val
         confounding_pct     = confounding_removed / abs(naive_val) * 100 if abs(naive_val) > 0.01 else 0
+        gt_line = (
+            f"\n  Ground truth (planted, for validation only): {true_effect:+.3f} days"
+            if dml_effect is not None and true_effect is not None else ""
+        )
         effect_block = (
             f"  Naive (confounded):       {naive_val:+.3f} days\n"
-            f"  Causal (Double ML / DML): {causal_val:+.3f} days\n"
+            f"  Causal ({causal_label}): {causal_val:+.3f} days\n"
             f"  Confounding removed:      {confounding_removed:+.3f} days ({confounding_pct:.1f}%)\n"
             f"  Method: Double ML with cross-fitted GBM nuisance models (Chernozhukov et al. 2018)"
+            f"{gt_line}"
         )
     else:
         effect_block = "  (Effect estimation not yet run for this domain)"
@@ -523,12 +534,18 @@ def build_response_data(
     n_events   = len(df) if df is not None else 0
     n_edges    = dag.number_of_edges() if dag is not None and hasattr(dag, "number_of_edges") else 9
     f1         = dag_metrics.get("f1_score", 0.0) if dag_metrics else 0.0
-    true_effect = cfg.get("true_effect") if cfg else None
 
     if do_result:
         _causal_eff = abs(do_result.get("causal", 0))
     else:
         _causal_eff = cfg.get("true_effect", 6.6) if cfg else 6.6
+    # Returned under the "true_effect" key below and rendered as
+    # "+X.XX days (Double ML)" in the causal-chain panel — must be the actual
+    # DML estimate (_causal_eff, with its own fallback already handled above),
+    # not the planted ground-truth constant. A prior version separately
+    # recomputed this as cfg.get("true_effect") and used that instead, which
+    # labeled the ground truth as a Double ML estimate.
+    true_effect = _causal_eff
 
     if domain == "manufacturing":
         _shift_ratio   = 0.25
