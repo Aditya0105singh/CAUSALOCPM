@@ -600,6 +600,24 @@ def compute_cate(df: pd.DataFrame,
         if n_sub < 100:
             continue
 
+        # Positivity/overlap check: a confounder-defined subgroup near the
+        # extreme of a monotonic treatment-assignment relationship can have
+        # almost no counterfactual comparisons (e.g. 36 untreated out of 4400
+        # in a "high confounder value" bucket). Double ML there isn't wrong so
+        # much as unanswerable — it extrapolates from a handful of atypical
+        # cases and produces a wide, unstable estimate that reads as a real
+        # signal. Skip subgroups where the minority treatment arm is too thin
+        # to support a trustworthy estimate, rather than showing a misleading
+        # number.
+        if treatment in subset.columns:
+            treat_counts = subset[treatment].value_counts()
+            if len(treat_counts) < 2:
+                continue
+            minority_n = int(treat_counts.min())
+            minority_frac = minority_n / n_sub
+            if minority_n < 30 or minority_frac < 0.05:
+                continue
+
         mod_lo = float(subset[moderator].min())
         mod_hi = float(subset[moderator].max())
         label  = (f'{bin_names.get(int(bin_idx), f"Q{int(bin_idx)+1}")}'

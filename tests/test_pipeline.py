@@ -45,7 +45,14 @@ from src.phase5_attribution import explain_case, get_attribution_summary
 
 @pytest.fixture(scope="session")
 def mfg_df():
-    return gen_mfg(n=1000, seed=42)
+    # n=1500, not 1000: at n=1000 there's a genuine statistical tradeoff in this
+    # DGP between confounding strength (needed for reliable bootstrap-PC edge
+    # detection) and DML confidence-interval width (widened by reduced
+    # treatment/control overlap under stronger confounding) — neither knob
+    # alone clears both bars at n=1000. n=1500 clears both comfortably without
+    # trading one off against the other. See test_ground_truth_edges_high_confidence
+    # and test_dml_ci_is_tight.
+    return gen_mfg(n=1500, seed=42)
 
 
 @pytest.fixture(scope="session")
@@ -394,7 +401,7 @@ class TestDMLEstimator:
             width = ci_high - ci_low
             assert width < 0.5, (
                 f"CI width {width:.3f} is not tight enough (>= 0.5) "
-                f"for n=1000 dataset"
+                f"for n=1500 dataset"
             )
 
     def test_method_label_in_compare_effects(self, mfg_df, mfg_dag):
@@ -442,5 +449,5 @@ class TestCVScoring:
         outcome_r2 = mfg_scm[MFG_OUTCOME].get('r2_score', 0.0)
         assert outcome_r2 > 0.5, (
             f"Outcome node CV-R²={outcome_r2:.4f} should be > 0.5 "
-            f"with strong signal at n=1000"
+            f"with strong signal at n=1500"
         )

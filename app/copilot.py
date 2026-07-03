@@ -7,6 +7,7 @@ high-quality answers so the demo never breaks.
 """
 
 from __future__ import annotations
+import logging
 import os
 import json
 import textwrap
@@ -15,6 +16,8 @@ from typing import Optional
 import networkx as nx
 import pandas as pd
 import numpy as np
+
+logger = logging.getLogger("causal_ocpm.copilot")
 
 
 # ── Quick-action chips ────────────────────────────────────────────────────────
@@ -258,6 +261,7 @@ def call_groq(
         return answer, confidence, follow_ups
 
     except Exception as _e:
+        logger.exception("Groq call failed for question=%r; using canned fallback answer", question)
         return _fallback(question, context, domain)
 
 
@@ -701,6 +705,7 @@ def call_groq_structured(
         return exec_text, confidence, follow_ups
 
     except Exception:
+        logger.exception("Structured Groq call failed for question=%r; using canned fallback answer", question)
         exec_text  = get_executive_answer(question, domain)
         chip_key   = _detect_chip_key(question)
         follow_ups = FOLLOW_UP_POOL.get(chip_key, FOLLOW_UP_POOL["custom"])

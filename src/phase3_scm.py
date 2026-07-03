@@ -44,7 +44,7 @@ _MFG_GROUND_TRUTH = {
     ('export_flag', 'approval_duration'):          2.0,
     ('carrier_express', 'shipment_delay'):         -0.6,
     ('order_complexity', 'shipment_delay'):        0.20,
-    ('approval_duration', 'shipment_delay'):       0.1,
+    ('approval_duration', 'shipment_delay'):       0.35,
     ('order_complexity', 'supplier_a'):            float('nan'),  # non-linear
 }
 
