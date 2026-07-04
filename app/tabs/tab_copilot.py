@@ -161,17 +161,16 @@ box-shadow: 0 2px 8px rgba(15,23,42,0.05), 0 0 0 4px rgba(16,185,129,0.08) !impo
 </style>""", unsafe_allow_html=True)
 
 # ── SESSION STATE ─────────────────────────────────────────────────────────
-for _k, _v in [("cop_history",[]),("cop_question",""),("cop_followups",[]),("cop_exec_mode",False)]:
+for _k, _v in [("cop_history",[]),("cop_question",""),("cop_followups",[])]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
-if "cop_groq_key_val" not in st.session_state:
-    try:
-        st.session_state["cop_groq_key_val"] = st.secrets.get("GROQ_API_KEY","")
-    except Exception:
-        st.session_state["cop_groq_key_val"] = ""
 
-# Resolve active key (secrets or manual override)
-_active_key = st.session_state["cop_groq_key_val"]
+# API key comes from secrets only — no manual override UI (nothing useful to
+# configure from the dashboard; if it's not set, fallback answers still work).
+try:
+    _active_key = st.secrets.get("CEREBRAS_API_KEY", "")
+except Exception:
+    _active_key = ""
 
 # ── HERO ─────────────────────────────────────────────────────────────────
 _cop_n      = len(df)
@@ -181,11 +180,11 @@ _key_active = bool(_active_key)
 _n_k        = f"{_cop_n // 1000}K" if _cop_n >= 1000 else str(_cop_n)
 _obj_types  = 5 if domain == "manufacturing" else 4
 
-_groq_badge = (
+_llm_badge = (
     '<span style="display:inline-flex;align-items:center;gap:5px;'
     'background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.28);'
     'border-radius:999px;padding:4px 12px;">'
-    '<span style="color:#34D399;font-size:0.7rem;font-weight:700;">&#10003; GROQ ACTIVE</span></span>'
+    '<span style="color:#34D399;font-size:0.7rem;font-weight:700;">&#10003; CEREBRAS ACTIVE</span></span>'
     if _key_active else
     '<span style="display:inline-flex;align-items:center;'
     'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);'
@@ -218,7 +217,7 @@ st.markdown(
     f'border-radius:999px;padding:4px 12px;">'
     f'<span style="color:#CBD5E1;font-size:0.7rem;font-weight:600;">{_cop_domain.upper()}</span></span>'
 
-    + _groq_badge +
+    + _llm_badge +
 
     '</div>'
 
@@ -242,59 +241,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Connection status + Executive toggle ──────────────────────────────────
-_stat_col, _tog_col = st.columns([3.5, 1.5])
-with _stat_col:
-    if _key_active:
-        st.markdown(
-            '<div style="display:inline-flex;align-items:center;gap:8px;'
-            'background:#F0FDF4;border:1px solid #A7F3D0;border-radius:8px;'
-            'padding:7px 14px;margin-top:8px;">'
-            '<span style="width:7px;height:7px;border-radius:50%;background:#10B981;'
-            'display:inline-block;"></span>'
-            '<span style="color:#065F46;font-size:0.82rem;font-weight:700;">Groq Connected</span>'
-            '<span style="color:#6EE7B7;font-size:0.8rem;">&#183;</span>'
-            '<span style="color:#059669;font-size:0.8rem;font-weight:500;">Llama 3.1 8B</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="display:inline-flex;align-items:center;gap:8px;'
-            'background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;'
-            'padding:7px 14px;margin-top:8px;">'
-            '<span style="width:7px;height:7px;border-radius:50%;background:#94A3B8;'
-            'display:inline-block;"></span>'
-            '<span style="color:#64748B;font-size:0.82rem;font-weight:600;">'
-            'High-quality fallbacks active</span>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-with _tog_col:
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-    _exec_on = st.toggle(
-        "⚡ Executive",
-        value=st.session_state["cop_exec_mode"],
-        key="cop_exec_toggle",
-    )
-    st.session_state["cop_exec_mode"] = _exec_on
-
-# ── Settings (collapsed; no implementation details visible) ───────────────
-with st.expander("Advanced Configuration", expanded=False):
+# ── Connection status ──────────────────────────────────────────────────────
+if _key_active:
     st.markdown(
-        '<p style="color:#64748B;font-size:0.8rem;margin:0 0 10px;">'
-        'Override the active API connection below.</p>',
+        '<div style="display:inline-flex;align-items:center;gap:8px;'
+        'background:#F0FDF4;border:1px solid #A7F3D0;border-radius:8px;'
+        'padding:7px 14px;margin-top:8px;">'
+        '<span style="width:7px;height:7px;border-radius:50%;background:#10B981;'
+        'display:inline-block;"></span>'
+        '<span style="color:#065F46;font-size:0.82rem;font-weight:700;">Cerebras Connected</span>'
+        '<span style="color:#6EE7B7;font-size:0.8rem;">&#183;</span>'
+        '<span style="color:#059669;font-size:0.8rem;font-weight:500;">Gemma 4 31B</span>'
+        '</div>',
         unsafe_allow_html=True,
     )
-    _key_input = st.text_input(
-        "API Key",
-        type="password",
-        placeholder="Enter a different key to override the active connection",
-        key="cop_groq_key_raw",
+else:
+    st.markdown(
+        '<div style="display:inline-flex;align-items:center;gap:8px;'
+        'background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;'
+        'padding:7px 14px;margin-top:8px;">'
+        '<span style="width:7px;height:7px;border-radius:50%;background:#94A3B8;'
+        'display:inline-block;"></span>'
+        '<span style="color:#64748B;font-size:0.82rem;font-weight:600;">'
+        'High-quality fallbacks active</span>'
+        '</div>',
+        unsafe_allow_html=True,
     )
-    if _key_input:
-        st.session_state["cop_groq_key_val"] = _key_input
-        _active_key = _key_input
 
 # Container placed HERE so history renders visually above quick-actions/input
 _history_container = st.container()
@@ -446,7 +418,7 @@ st.markdown(
     'border-top:1px solid #E2E8F0;">'
     '<span style="color:#CBD5E1;font-size:0.68rem;">&#8629; Enter to send</span>'
     '<span style="color:#E2E8F0;">·</span>'
-    '<span style="color:#CBD5E1;font-size:0.68rem;">Powered by Llama 3.1 8B via Groq</span>'
+    '<span style="color:#CBD5E1;font-size:0.68rem;">Powered by Gemma 4 31B via Cerebras</span>'
     '</div>'
     '</div>',
     unsafe_allow_html=True,
@@ -479,7 +451,7 @@ if _q_to_process and not _already_answered:
                     _hist3 = [{"q": r["question"], "a": r["exec_text"]}
                               for r in st.session_state["cop_history"][-3:]
                               if "question" in r and "exec_text" in r]
-                    _exec_text, _conf, _fups = _copilot_call_groq_structured(
+                    _exec_text, _conf, _fups = _copilot_call_cerebras_structured(
                         _q_to_process, _ctx3, _active_key, domain=domain, history=_hist3)
                 else:
                     _exec_text = _copilot_exec_answer(_q_to_process, domain)
@@ -490,7 +462,7 @@ if _q_to_process and not _already_answered:
                 _resp_data = _copilot_build_response(
                     question=_q_to_process, domain=domain, cfg=cfg, dag=dag,
                     dag_metrics=dag_metrics, df=df, coefs=coefs, do_result=do_result,
-                    groq_exec_text=_exec_text, groq_confidence=_conf, groq_follow_ups=_fups,
+                    llm_exec_text=_exec_text, llm_confidence=_conf, llm_follow_ups=_fups,
                 )
             else:
                 _fb_bl   = round(float(df[cfg["outcome_var"]].mean()), 2) if cfg.get("outcome_var") in df.columns else (8.2 if domain == "manufacturing" else 5.27)
@@ -540,7 +512,7 @@ def _bold(s: str) -> str:
     escaped = _html.escape(str(s))
     return _re.sub(r"\*\*(.+?)\*\*", r'<b style="color:#059669;">\1</b>', escaped)
 
-def _render_answer(rd: dict, exec_mode: bool = False) -> None:
+def _render_answer(rd: dict) -> None:
     conf    = rd.get("confidence", "High")
     c_color = {"High": "#059669", "Moderate": "#D97706", "Low": "#DC2626"}.get(conf, "#059669")
     c_bg    = {"High": "#F0FDF4", "Moderate": "#FFFBEB", "Low": "#FEF2F2"}.get(conf, "#F0FDF4")
@@ -666,23 +638,22 @@ def _render_answer(rd: dict, exec_mode: bool = False) -> None:
             unsafe_allow_html=True,
         )
 
-    # 3. EVIDENCE — collapsed, hidden in exec mode ─────────────────────────
-    if not exec_mode:
-        ev_list = rd.get("evidence", [])
-        with st.expander("Supporting Evidence", expanded=False):
-            for ev in ev_list:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;'
-                    f'border-bottom:1px solid #F1F5F9;">'
-                    f'<span style="color:#10B981;font-weight:700;flex-shrink:0;">&#10003;</span>'
-                    f'<span style="color:#334155;font-size:0.84rem;">{_html.escape(str(ev))}</span></div>',
-                    unsafe_allow_html=True,
-                )
+    # 3. EVIDENCE — collapsed, always available ────────────────────────────
+    ev_list = rd.get("evidence", [])
+    with st.expander("Supporting Evidence", expanded=False):
+        for ev in ev_list:
             st.markdown(
-                '<p style="color:#94A3B8;font-size:0.75rem;font-style:italic;margin:8px 0 0;">'
-                'Validated via causal recovery and structural consistency analysis.</p>',
+                f'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;'
+                f'border-bottom:1px solid #F1F5F9;">'
+                f'<span style="color:#10B981;font-weight:700;flex-shrink:0;">&#10003;</span>'
+                f'<span style="color:#334155;font-size:0.84rem;">{_html.escape(str(ev))}</span></div>',
                 unsafe_allow_html=True,
             )
+        st.markdown(
+            '<p style="color:#94A3B8;font-size:0.75rem;font-style:italic;margin:8px 0 0;">'
+            'Validated via causal recovery and structural consistency analysis.</p>',
+            unsafe_allow_html=True,
+        )
 
     # 4. SIMULATION CTA ────────────────────────────────────────────────────
     if _show_sim:
@@ -774,7 +745,7 @@ with _history_container:
                 f'{_rd.get("question","")}</div></div>',
                 unsafe_allow_html=True,
             )
-            _render_answer(_rd, exec_mode=st.session_state.get("cop_exec_mode", False))
+            _render_answer(_rd)
             if _idx_h < len(_history) - 1:
                 st.markdown(
                     "<div style='height:1px;background:#F1F5F9;margin:20px 0;'></div>",

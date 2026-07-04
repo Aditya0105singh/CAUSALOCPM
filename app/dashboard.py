@@ -36,9 +36,9 @@ if not hasattr(st, "fragment"):
 
 try:
     from app.copilot import (
-        build_context          as _copilot_build_context,
-        call_groq              as _copilot_call_groq,
-        call_groq_structured   as _copilot_call_groq_structured,
+        build_context           as _copilot_build_context,
+        call_cerebras           as _copilot_call_cerebras,
+        call_cerebras_structured as _copilot_call_cerebras_structured,
         build_response_data    as _copilot_build_response,
         get_executive_answer   as _copilot_exec_answer,
         QUICK_CHIPS            as _COPILOT_CHIPS,

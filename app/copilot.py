@@ -2,8 +2,8 @@
 CausalOCPM Causal Copilot
 ==========================
 Context-aware, domain-grounded Q&A over the live causal pipeline output.
-Uses Groq (llama-3.3-70b) when GROQ_API_KEY is set; falls back to pre-computed
-high-quality answers so the demo never breaks.
+Uses Cerebras (gemma-4-31b, OpenAI-compatible API) when CEREBRAS_API_KEY is
+set; falls back to pre-computed high-quality answers so the demo never breaks.
 """
 
 from __future__ import annotations
@@ -209,7 +209,7 @@ Do NOT fabricate numbers outside this context.
     return ctx
 
 
-# ── Groq API call ─────────────────────────────────────────────────────────────
+# ── Cerebras API call ─────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
 You are a Causal Process Intelligence Analyst embedded in CausalOCPM —
@@ -228,20 +228,21 @@ Rules:
    reason (e.g., "High — ground truth recovery error < 0.3%").
 """
 
-def call_groq(
+def call_cerebras(
     question: str,
     context: str,
     api_key: str,
-    model: str = "llama-3.1-8b-instant",
+    model: str = "gemma-4-31b",
     domain: str = "manufacturing",
 ) -> tuple[str, str, list[str]]:
     """
-    Call Groq API. Returns (answer, confidence_level, follow_up_questions).
+    Call Cerebras (OpenAI-compatible API). Returns (answer, confidence_level, follow_up_questions).
     Falls back to pre-computed answers if API fails.
     """
     try:
-        from groq import Groq
-        client = Groq(api_key=api_key, max_retries=0, timeout=4.0)
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1",
+                         max_retries=0, timeout=8.0)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"},
@@ -251,7 +252,7 @@ def call_groq(
             messages=messages,
             temperature=0.3,
             max_tokens=600,
-            timeout=4.0,
+            timeout=8.0,
         )
         raw = resp.choices[0].message.content.strip()
 
@@ -272,7 +273,7 @@ def call_groq(
         return answer, confidence, follow_ups
 
     except Exception as _e:
-        logger.exception("Groq call failed for question=%r; using canned fallback answer", question)
+        logger.exception("Cerebras call failed for question=%r; using canned fallback answer", question)
         return _fallback(question, context, domain)
 
 
@@ -292,7 +293,7 @@ def _detect_chip_key(question: str) -> str:
 # ── Fallback answers ──────────────────────────────────────────────────────────
 
 def _fallback(question: str, context: str, domain: str) -> tuple[str, str, list[str]]:
-    """Return a pre-computed high-quality answer when Groq is unavailable."""
+    """Return a pre-computed high-quality answer when Cerebras is unavailable."""
     key = _detect_chip_key(question)
     answers = _get_fallback_answers(domain)
     answer = answers.get(key, answers["custom"])
@@ -518,18 +519,18 @@ def build_response_data(
     df,
     coefs,
     do_result: dict = None,
-    groq_exec_text: Optional[str] = None,
-    groq_confidence: str = "High",
-    groq_follow_ups: Optional[list] = None,
+    llm_exec_text: Optional[str] = None,
+    llm_confidence: str = "High",
+    llm_follow_ups: Optional[list] = None,
 ) -> dict:
     """
     Build a fully structured response dict for the premium Decision Intelligence UI.
-    groq_exec_text overrides the fallback executive answer when Groq is available.
+    llm_exec_text overrides the fallback executive answer when the LLM (Cerebras) is available.
     """
     chip_key   = _detect_chip_key(question)
-    exec_text  = groq_exec_text or get_executive_answer(question, domain)
-    confidence = groq_confidence
-    follow_ups = groq_follow_ups or FOLLOW_UP_POOL.get(chip_key, FOLLOW_UP_POOL["custom"])
+    exec_text  = llm_exec_text or get_executive_answer(question, domain)
+    confidence = llm_confidence
+    follow_ups = llm_follow_ups or FOLLOW_UP_POOL.get(chip_key, FOLLOW_UP_POOL["custom"])
 
     n_events   = len(df) if df is not None else 0
     n_edges    = dag.number_of_edges() if dag is not None and hasattr(dag, "number_of_edges") else 9
@@ -655,23 +656,24 @@ def build_response_data(
     }
 
 
-def call_groq_structured(
+def call_cerebras_structured(
     question: str,
     context: str,
     api_key: str,
     domain: str = "manufacturing",
-    model: str = "llama-3.1-8b-instant",
+    model: str = "gemma-4-31b",
     history: Optional[list] = None,
 ) -> tuple[str, str, list[str]]:
     """
-    Call Groq with a tight prompt returning one executive sentence.
+    Call Cerebras with a tight prompt returning one executive sentence.
     Supports multi-turn history: pass list of {"q": str, "a": str} dicts.
     Returns (executive_sentence, confidence, follow_ups).
     Falls back to pre-computed answer on any error.
     """
     try:
-        from groq import Groq
-        client = Groq(api_key=api_key, max_retries=0, timeout=4.0)
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1",
+                         max_retries=0, timeout=8.0)
 
         system_msg = (
             "You are a Causal Process Intelligence Analyst embedded in CausalOCPM. "
@@ -702,7 +704,7 @@ def call_groq_structured(
             messages=messages,
             temperature=0.2,
             max_tokens=150,
-            timeout=4.0,
+            timeout=8.0,
         )
         raw = resp.choices[0].message.content.strip()
 
@@ -722,7 +724,7 @@ def call_groq_structured(
         return exec_text, confidence, follow_ups
 
     except Exception:
-        logger.exception("Structured Groq call failed for question=%r; using canned fallback answer", question)
+        logger.exception("Structured Cerebras call failed for question=%r; using canned fallback answer", question)
         exec_text  = get_executive_answer(question, domain)
         chip_key   = _detect_chip_key(question)
         follow_ups = FOLLOW_UP_POOL.get(chip_key, FOLLOW_UP_POOL["custom"])

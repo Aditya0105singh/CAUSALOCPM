@@ -23,3 +23,6 @@ Thumbs.db
 *.zip
 *.tar.gz
 *.gz
+
+# Secrets — never commit API keys
+.streamlit/secrets.toml
