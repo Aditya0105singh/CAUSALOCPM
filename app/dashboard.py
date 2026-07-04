@@ -84,41 +84,10 @@ if IS_LIGHT:
     --text-color: #1E293B !important;
 }
 .stApp { background-color: #FFFFFF !important; }
-/* Hide header visuals but keep sidebar toggle accessible */
+/* Hide header background but keep it functional */
 [data-testid="stHeader"] {
     background: transparent !important;
-    border: none !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    overflow: visible !important;
 }
-/* Sidebar re-open control: made larger, higher-contrast, and with an outer
-   ring on hover — the default is a small icon-only button in the extreme
-   top-left corner that's easy to miss entirely once the sidebar is closed,
-   which is a dead end for anyone who doesn't know it's there. */
-[data-testid="collapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    top: 0.6rem !important;
-    left: 0.6rem !important;
-    z-index: 999999 !important;
-    width: 2.6rem !important;
-    height: 2.6rem !important;
-    background: rgba(15, 118, 110, 0.12) !important;
-    border: 1.5px solid #0F766E !important;
-    border-radius: 10px !important;
-    padding: 4px !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
-    backdrop-filter: blur(8px) !important;
-    transition: transform 0.15s ease, background 0.15s ease !important;
-}
-[data-testid="collapsedControl"]:hover {
-    background: rgba(15, 118, 110, 0.22) !important;
-    transform: scale(1.06) !important;
-}
-[data-testid="collapsedControl"] svg { width: 1.3rem !important; height: 1.3rem !important; }
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     padding-top: 0 !important;
 }
@@ -137,11 +106,6 @@ html, body, [class*="css"] { color: #1E293B !important; }
     backdrop-filter: blur(12px) !important;
     border-right: 2px solid #CBD5E1 !important;
 }
-/* Our own sidebar hide toggle (see the redundant-toggle script below) — a
-   plain class flip, independent of Streamlit's own internal collapse state.
-   stAppViewContainer is a flex row, so hiding the sidebar here lets the main
-   content flex-sibling reflow to fill the space with no extra width rules. */
-body.cocpm-sidebar-hidden [data-testid="stSidebar"] { display: none !important; }
 [data-testid="stSidebar"] hr, hr { border-color: rgba(226, 232, 240, 0.8) !important; }
 ::-webkit-scrollbar-track { background: transparent !important; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1 !important; }
@@ -286,52 +250,7 @@ table.ctbl td { color: #334155 !important; border-top: 1px solid rgba(241, 242, 
 }
 </style>""", unsafe_allow_html=True)
 
-# ── Redundant sidebar toggle ───────────────────────────────────────────────────
-# Streamlit's own collapse/re-open control (data-testid="collapsedControl") is
-# already kept visible by the CSS above and works correctly in local testing —
-# but it depends on Streamlit's internal DOM structure staying stable across
-# versions/deployments, which is exactly the kind of thing that silently breaks
-# on a different pinned Streamlit version. This button is a fully independent
-# second path: it does NOT try to relay a click onto Streamlit's own control
-# (a script-dispatched .click() produces an untrusted synthetic event that
-# Streamlit's frontend silently ignores — confirmed directly: it has no
-# effect, while a real user-driven click on the same element works fine).
-# Instead it just flips a plain CSS class on <body> that we define ourselves
-# (see the stSidebar rule above) — no dependency on Streamlit's internal state
-# or event handling at all, so it can't be broken by a version difference.
-_stc.html("""<script>
-(function(){
-  function install(){
-    try{
-      var doc = window.parent.document;
-      if (doc.getElementById('cocpm-sidebar-toggle')) return;
-      var btn = doc.createElement('button');
-      btn.id = 'cocpm-sidebar-toggle';
-      btn.innerHTML = '&#9776;';
-      btn.title = 'Show/hide sidebar';
-      btn.style.cssText = [
-        'position:fixed', 'top:0.6rem', 'left:3.6rem', 'z-index:1000000',
-        'width:2.6rem', 'height:2.6rem', 'border-radius:10px',
-        'background:rgba(15,118,110,0.12)', 'border:1.5px solid #0F766E',
-        'color:#0F766E', 'font-size:1.15rem', 'cursor:pointer',
-        'box-shadow:0 2px 10px rgba(0,0,0,0.12)', 'backdrop-filter:blur(8px)'
-      ].join(';');
-      btn.onmouseenter = function(){ btn.style.background = 'rgba(15,118,110,0.22)'; };
-      btn.onmouseleave = function(){ btn.style.background = 'rgba(15,118,110,0.12)'; };
-      btn.onclick = function(){
-        doc.body.classList.toggle('cocpm-sidebar-hidden');
-      };
-      doc.body.appendChild(btn);
-    } catch(e) {}
-  }
-  install();
-  [300, 800, 1600, 3000].forEach(function(d){ setTimeout(install, d); });
-  try {
-    var obs = new MutationObserver(function(){ install(); });
-    obs.observe(window.parent.document.body, {childList:true, subtree:false});
-  } catch(e) {}
-})();
-</script>""", height=0)
+
 
 
 # ╔â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•╗

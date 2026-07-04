@@ -532,10 +532,6 @@ ul[role="listbox"] {
 }
 
 /* 8. AGGRESSIVE TOP SPACE REMOVAL */
-.stApp header[data-testid="stHeader"] {
-    display: none !important;
-    height: 0px !important;
-}
 .stApp [data-testid="stAppViewBlockContainer"],
 .stApp .main .block-container {
     padding-top: 2rem !important;
@@ -558,41 +554,8 @@ ul[role="listbox"] {
     margin: 0 !important;
 }
 
-/* ── MOBILE: Restore sidebar toggle button ───────────────────────────────── */
-/* The header is hidden globally (display:none) which also removes the
-   hamburger/toggle button on small screens, making the sidebar permanently
-   inaccessible on phones. Re-surface only the toggle button on mobile. */
+/* ── MOBILE TWEAKS ───────────────────────────────── */
 @media (max-width: 768px) {
-    /* Show the collapsed-sidebar toggle that Streamlit injects */
-    [data-testid="collapsedControl"] {
-        display: flex !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 99999 !important;
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 10px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
-        padding: 6px 8px !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-    }
-    [data-testid="collapsedControl"] svg {
-        width: 20px !important;
-        height: 20px !important;
-        color: #10B981 !important;
-        fill: #10B981 !important;
-    }
-
-    /* Push main content down so it doesn't sit under the toggle button */
-    .stApp [data-testid="stAppViewBlockContainer"],
-    .stApp .main .block-container,
-    [data-testid="stMainBlockContainer"] {
-        padding-top: 3.5rem !important;
-    }
-
     /* Sidebar takes full width on phone when open */
     [data-testid="stSidebar"] {
         width: 85vw !important;
