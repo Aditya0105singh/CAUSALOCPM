@@ -49,7 +49,7 @@ code, pre, .stCode {
 
 /* ── SIDEBAR ─────────────────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background: #F1F5F9 !important;
+    background: #E2E8F0 !important;
     border-right: 1px solid #CBD5E1 !important;
 }
 [data-testid="stSidebar"] hr {
