@@ -49,8 +49,8 @@ code, pre, .stCode {
 
 /* ── SIDEBAR ─────────────────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background: #FFFFFF !important;
-    border-right: 1px solid #E2E8F0 !important;
+    background: #F1F5F9 !important;
+    border-right: 1px solid #CBD5E1 !important;
 }
 [data-testid="stSidebar"] hr {
     border-color: #F1F5F9 !important;
