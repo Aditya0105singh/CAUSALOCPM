@@ -36,10 +36,7 @@ code, pre, .stCode {
     max-width: 1440px;
 }
 
-/* ── HIDE CHROME ─────────────────────────────────────────────────────────── */
-#MainMenu, footer, [data-testid="stToolbar"], .stDeployButton { 
-    display: none !important; 
-}
+/* ── HIDE CHROME ─────────────────────────────────────────────────────────── */\r\n#MainMenu, footer, .stDeployButton { \r\n    display: none !important; \r\n}
 
 /* ── SCROLLBAR ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -531,12 +528,7 @@ ul[role="listbox"] {
     border-radius: 8px !important;
 }
 
-/* 8. AGGRESSIVE TOP SPACE REMOVAL */
-.stApp [data-testid="stAppViewBlockContainer"],
-.stApp .main .block-container {
-    padding-top: 2rem !important;
-    margin-top: 0 !important;
-}
+/* 8. CONTENT SPACING */
 .hero-section {
     padding: 0.5rem 1.5rem !important;
     margin-bottom: 0.5rem !important;

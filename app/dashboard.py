@@ -84,21 +84,49 @@ if IS_LIGHT:
     --text-color: #1E293B !important;
 }
 .stApp { background-color: #FFFFFF !important; }
-/* Hide header background but keep it functional */
+/* Header: keep functional with transparent bg so sidebar toggle is accessible */
 [data-testid="stHeader"] {
+    background: #FFFFFF !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+/* Sidebar toggle button (collapsed state) — large, high-contrast, easy to find */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 999999 !important;
+    background: #F1F5F9 !important;
+    border: 1.5px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    padding: 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease !important;
+}
+[data-testid="collapsedControl"]:hover {
+    background: #E2E8F0 !important;
+    border-color: #10B981 !important;
+    transform: scale(1.05) !important;
+}
+[data-testid="collapsedControl"] svg {
+    width: 1.2rem !important;
+    height: 1.2rem !important;
+    color: #334155 !important;
+}
+/* Sidebar close button */
+[data-testid="stSidebar"] button[kind="header"],
+[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button {
+    color: #64748B !important;
     background: transparent !important;
 }
-[data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    padding-top: 0 !important;
+[data-testid="stSidebar"] button[kind="header"]:hover,
+[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button:hover {
+    color: #1E293B !important;
+    background: rgba(0,0,0,0.05) !important;
 }
 [data-testid="stMainBlockContainer"], [data-testid="stAppViewBlockContainer"], [data-testid="block-container"], .main .block-container { 
     background-color: #FFFFFF !important; 
-    padding-top: 2rem !important; 
     padding-bottom: 2rem !important; 
-    margin-top: 0 !important;
-}
-.element-container:has(style), .stMarkdown:has(style) {
-    display: none !important;
 }
 html, body, [class*="css"] { color: #1E293B !important; }
 [data-testid="stSidebar"] {
