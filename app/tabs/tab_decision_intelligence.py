@@ -111,7 +111,7 @@ st.markdown(
     f'</div>'
     f'<div>'
     f'<div style="color:#6B7280;font-size:0.72rem;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Achievable Reduction</div>'
-    f'<div style="color:#1D4ED8;font-size:2rem;font-weight:900;">{_r_reduction}%</div>'
+    f'<div style="color:#1D4ED8;font-size:2rem;font-weight:900;">{_r_reduction:.1f}%</div>'
     f'<div style="color:#6B7280;font-size:0.8rem;">from {_r_baseline} → {_r_new_val} days · policy simulator scenario</div>'
     f'</div>'
     f'</div>'
@@ -148,7 +148,7 @@ _r_mult = 300 * 960 if domain == "manufacturing" else 400 * 1050
 _r_row2_save = int(round(_r_row2_imp / 100 * _r_baseline * _r_mult / 1000) * 1000)
 _r_row3_save = int(round(_r_row3_imp / 100 * _r_baseline * _r_mult / 1000) * 1000)
 _action_rows = [
-    ("1", _r_action1, f"{_r_reduction}%", "High",   f"${_r_saving//1000}K / yr",   "Immediate"),
+    ("1", _r_action1, f"{_r_reduction:.1f}%", "High",   f"${_r_saving//1000}K / yr",   "Immediate"),
     ("2", _r_action2, f"{_r_row2_imp}%",  "Medium", f"${_r_row2_save//1000}K / yr", "30 days"),
     ("3", _r_action3, f"{_r_row3_imp}%",  "High",   f"${_r_row3_save//1000}K / yr", "60 days"),
 ]

@@ -44,17 +44,22 @@ if not coefs.empty:
     total_edges = len(coefs)
     # Sign Error or no comparison
     recovered_edges = len(coefs[coefs['status'] != 'Sign Error'])
-    mean_error = coefs['pct_error'].mean() if 'pct_error' in coefs else 0.0
+    # Domains without a planted numeric ground truth (e.g. healthcare — see
+    # _MFG_GROUND_TRUTH in phase3_scm.py) have pct_error/abs_error all-NaN by
+    # design (structural demonstration only, not numerical validation). Show
+    # that honestly instead of ".mean()" silently producing "nan%".
+    _raw_mean_error = coefs['pct_error'].mean() if 'pct_error' in coefs else 0.0
+    mean_error_str = f"{_raw_mean_error:.1%}" if pd.notna(_raw_mean_error) else "N/A"
     sign_consistency = (recovered_edges / total_edges) * 100 if total_edges > 0 else 100.0
-    
+
     if 'abs_error' in coefs and not coefs['abs_error'].isna().all():
         best_idx = coefs['abs_error'].idxmin()
         best_edge_row = coefs.loc[best_idx]
         strongest_recovery = f"{best_edge_row['parent']} → {best_edge_row['child']}"
-        strongest_err = best_edge_row['pct_error']
+        strongest_err_str = f"{best_edge_row['pct_error']:.1%} Error"
     else:
         strongest_recovery = "N/A"
-        strongest_err = 0.0
+        strongest_err_str = "No numeric ground truth for this domain"
         
     # SECTION 2: Model Validation Summary
     st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Model Validation Summary</h4>", unsafe_allow_html=True)
@@ -67,7 +72,7 @@ if not coefs.empty:
         f'</div>'
         f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
         f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Mean Relative Error</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#15803D; margin-top:4px;">{mean_error:.1%}</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:#15803D; margin-top:4px;">{mean_error_str}</div>'
         f'</div>'
         f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
         f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Sign Consistency</div>'
@@ -76,7 +81,7 @@ if not coefs.empty:
         f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
         f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Strongest Recovery</div>'
         f'<div style="font-size:1rem; font-weight:700; color:#15803D; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{strongest_recovery}">{strongest_recovery}</div>'
-        f'<div style="font-size:0.8rem; font-weight:600; color:#166534; margin-top:2px;">{strongest_err:.1%} Error</div>'
+        f'<div style="font-size:0.8rem; font-weight:600; color:#166534; margin-top:2px;">{strongest_err_str}</div>'
         f'</div>'
         f'</div>'
     )
