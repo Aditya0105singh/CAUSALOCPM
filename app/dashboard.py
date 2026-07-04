@@ -92,19 +92,33 @@ if IS_LIGHT:
     min-height: 0 !important;
     overflow: visible !important;
 }
+/* Sidebar re-open control: made larger, higher-contrast, and with an outer
+   ring on hover — the default is a small icon-only button in the extreme
+   top-left corner that's easy to miss entirely once the sidebar is closed,
+   which is a dead end for anyone who doesn't know it's there. */
 [data-testid="collapsedControl"] {
     display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     position: fixed !important;
-    top: 0.5rem !important;
-    left: 0.5rem !important;
+    top: 0.6rem !important;
+    left: 0.6rem !important;
     z-index: 999999 !important;
-    background: rgba(232, 236, 241, 0.95) !important;
-    border: 1px solid #CBD5E1 !important;
-    border-radius: 8px !important;
+    width: 2.6rem !important;
+    height: 2.6rem !important;
+    background: rgba(15, 118, 110, 0.12) !important;
+    border: 1.5px solid #0F766E !important;
+    border-radius: 10px !important;
     padding: 4px !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
     backdrop-filter: blur(8px) !important;
+    transition: transform 0.15s ease, background 0.15s ease !important;
 }
+[data-testid="collapsedControl"]:hover {
+    background: rgba(15, 118, 110, 0.22) !important;
+    transform: scale(1.06) !important;
+}
+[data-testid="collapsedControl"] svg { width: 1.3rem !important; height: 1.3rem !important; }
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     padding-top: 0 !important;
 }
