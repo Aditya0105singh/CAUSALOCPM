@@ -49,8 +49,8 @@ code, pre, .stCode {
 
 /* ── SIDEBAR ─────────────────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background: #E2E8F0 !important;
-    border-right: 1px solid #CBD5E1 !important;
+    background: #E8ECF1 !important;
+    border-right: 2px solid #CBD5E1 !important;
 }
 [data-testid="stSidebar"] hr {
     border-color: #F1F5F9 !important;
@@ -438,9 +438,9 @@ ul[role="listbox"] {
 
 /* 1. Sidebar background and border */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
-    border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.02) !important;
+    background: linear-gradient(180deg, #E8ECF1 0%, #DFE4EB 100%) !important;
+    border-right: 2px solid #CBD5E1 !important;
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.04) !important;
 }
 [data-testid="stSidebar"] > div:first-child {
     background: transparent !important;

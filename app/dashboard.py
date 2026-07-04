@@ -101,9 +101,9 @@ if IS_LIGHT:
 }
 html, body, [class*="css"] { color: #1E293B !important; }
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, rgba(248, 249, 251, 0.85) 0%, rgba(255, 255, 255, 0.95) 100%) !important;
+    background: linear-gradient(180deg, #E8ECF1 0%, #DFE4EB 100%) !important;
     backdrop-filter: blur(12px) !important;
-    border-right: 1px solid rgba(226, 232, 240, 0.8) !important;
+    border-right: 2px solid #CBD5E1 !important;
 }
 [data-testid="stSidebar"] hr, hr { border-color: rgba(226, 232, 240, 0.8) !important; }
 ::-webkit-scrollbar-track { background: transparent !important; }
