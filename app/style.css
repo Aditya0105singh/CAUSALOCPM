@@ -37,7 +37,7 @@ code, pre, .stCode {
 }
 
 /* ── HIDE CHROME ─────────────────────────────────────────────────────────── */
-#MainMenu, footer, header, [data-testid="stToolbar"], .stDeployButton { 
+#MainMenu, footer, [data-testid="stToolbar"], .stDeployButton { 
     display: none !important; 
 }
 

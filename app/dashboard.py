@@ -84,9 +84,27 @@ if IS_LIGHT:
     --text-color: #1E293B !important;
 }
 .stApp { background-color: #FFFFFF !important; }
-[data-testid="stHeader"] { display: none !important; }
-/* Keep sidebar toggle visible even when header is hidden (mobile fix) */
-[data-testid="collapsedControl"] { display: flex !important; }
+/* Hide header visuals but keep sidebar toggle accessible */
+[data-testid="stHeader"] {
+    background: transparent !important;
+    border: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+}
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    position: fixed !important;
+    top: 0.5rem !important;
+    left: 0.5rem !important;
+    z-index: 999999 !important;
+    background: rgba(232, 236, 241, 0.95) !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    padding: 4px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    backdrop-filter: blur(8px) !important;
+}
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {
     padding-top: 0 !important;
 }
