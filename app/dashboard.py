@@ -1016,6 +1016,28 @@ with st.sidebar:
     st.markdown("---")
 
     _stage_ph = st.empty()
+    # st.empty() reserves this slot immediately, but its real content (the
+    # Pipeline Ready card, filled in via _stage_ph.markdown(...) much later
+    # in the script, after the causal pipeline actually finishes computing)
+    # doesn't land until that point — on a slower load this showed as a
+    # plain blank gap between "View Scenario Details" and "How It Works".
+    # A same-shaped loading skeleton here gets replaced by the real card
+    # once it's ready, instead of leaving a gap that looks like broken layout.
+    _stage_ph.markdown(
+        '<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;'
+        'padding:14px 16px;">'
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'
+        '<div style="width:14px;height:14px;border-radius:50%;background:#E2E8F0;"></div>'
+        '<div style="width:110px;height:12px;border-radius:4px;background:#E2E8F0;"></div>'
+        '</div>'
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
+        + ''.join(
+            '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;'
+            'height:58px;"></div>' for _ in range(3)
+        ) +
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
 
@@ -1312,11 +1334,27 @@ _boot_stab_pct  = round(_boot_raw * 100, 1)
 _boot_stab_label = "Bootstrap Stability (F1 proxy)" if _boot_is_fallback else "Bootstrap Stability"
 _n_edges = dag.number_of_edges() if "dag" in locals() else 0
 
+# Plain-language labels + native `title` hover tooltips — the original
+# labels ("Causal Links", "Domain Knowledge Applied", "Bootstrap Stability")
+# are technically precise but meaningless to a non-technical viewer at a
+# glance; rewording plus a hover explanation covers both the quick scan and
+# the "wait, what does that mean" follow-up without changing the layout.
+_boot_stab_tooltip = (
+    f"This finding held up in {_boot_stab_pct:.0f}% of 20 repeated tests on "
+    f"randomly resampled data — a check against it being a fluke."
+    if not _boot_is_fallback else
+    f"Bootstrap resampling wasn't available for this run, so this is a "
+    f"proxy score ({_boot_stab_pct:.0f}%) based on discovery accuracy instead."
+)
 _pipe_html = (
-    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#475569; font-weight:600;"><span style="color:#94A3B8; font-size:1rem;">◎</span> {_n_edges} Causal Links</div>'
-    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#475569; font-weight:600;"><span style="color:#94A3B8; font-size:1rem;">◉</span> Outcome: {_out_str}</div>'
-    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#10B981; font-weight:600;"><span style="font-size:1rem;">✓</span> Domain Knowledge Applied</div>'
-    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#475569; font-weight:600;"><span style="color:#94A3B8; font-size:1rem;">◈</span> {_boot_stab_label}: {_boot_stab_pct:.0f}%</div>'
+    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#475569; font-weight:600;" title="{_n_edges} verified cause-and-effect relationships found in your process data — not just correlations.">'
+    f'<span style="color:#94A3B8; font-size:1rem;">◎</span> {_n_edges} Cause-and-Effect Links</div>'
+    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#475569; font-weight:600;" title="The result being analyzed and improved.">'
+    f'<span style="color:#94A3B8; font-size:1rem;">◉</span> Target: {_out_str}</div>'
+    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#10B981; font-weight:600;" title="Real-world business rules from domain experts were combined with the statistics, not just raw data patterns.">'
+    f'<span style="font-size:1rem;">✓</span> Expert Rules Applied</div>'
+    f'<div style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#475569; font-weight:600;" title="{_boot_stab_tooltip}">'
+    f'<span style="color:#94A3B8; font-size:1rem;">◈</span> {_boot_stab_pct:.0f}% Reliable</div>'
 )
 
 hero_ph.markdown(
