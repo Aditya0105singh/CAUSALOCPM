@@ -41,12 +41,20 @@ try:
         call_cerebras_structured as _copilot_call_cerebras_structured,
         build_response_data    as _copilot_build_response,
         get_executive_answer   as _copilot_exec_answer,
+        compute_sign_consistency as _compute_sign_consistency,
         QUICK_CHIPS            as _COPILOT_CHIPS,
         FOLLOW_UP_POOL         as _FOLLOW_UP_POOL,
     )
     _COPILOT_AVAILABLE = True
 except ImportError:
     _COPILOT_AVAILABLE = False
+
+    def _compute_sign_consistency(coefs):
+        if coefs is None or coefs.empty or "status" not in coefs.columns:
+            return 0, 0, 100.0
+        total = len(coefs)
+        sign_ok = int((coefs["status"] != "Sign Error").sum())
+        return sign_ok, total, (round(100.0 * sign_ok / total, 1) if total else 100.0)
 
 
 # ── PAGE CONFIG (first st.* call) ─────────────────────────────────────────────
@@ -143,17 +151,9 @@ html, body, [class*="css"] { color: #1E293B !important; }
     scrollbar-color: #CBD5E1 transparent !important;
 }
 [data-testid="stTabs"] button[data-baseweb="tab"] { color: #64748B !important; font-weight: 600 !important; }
-[data-testid="stTabs"] button[data-baseweb="tab"]:hover { background: rgba(16, 185, 129, 0.10) !important; color: #1E293B !important; }
-[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"],
-[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"]:hover,
-[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
-    background: linear-gradient(135deg, #10B981, #059669) !important;
-    color: #022C22 !important;
-    font-weight: 800 !important;
-    border-radius: 8px !important;
-    border: 1px solid #059669 !important;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
-}
+/* Hover and active-pill styling (fill, border, shadow) are per-tab colored
+   and defined once in tab_overview.py's tab bar accent block — see the
+   comment there. */
 
 [data-testid="stMetric"], .mcard, .content-card, .insight-box {
     background: rgba(255, 255, 255, 0.75) !important;
@@ -935,10 +935,15 @@ with st.sidebar:
 
     # ── 1. Domain Selection ───────────────────────────────────────────
     st.markdown('<p class="sb-label">🌐 &nbsp;Analysis Domain</p>', unsafe_allow_html=True)
+    # st.radio's option labels render through Streamlit's markdown engine
+    # (confirmed the same way as the tab bar: <p><strong>...</strong><br>...)
+    # so a real bold title + subtitle is genuine markdown here, not a CSS
+    # trick — the card look (icon badge, selected tint, dot) is pure CSS on
+    # top of that, in style.css.
     domain_choice = st.radio(
         "Domain",
-        ["Manufacturing — Prihir Enterprises",
-         "Healthcare — Hospital Admissions"],
+        ["**Manufacturing**  \nPrihir Enterprises",
+         "**Healthcare**  \nHospital Admissions"],
         key="domain_radio",
         label_visibility="collapsed",
     )
@@ -948,72 +953,77 @@ with st.sidebar:
         domain = "healthcare"
 
     # Domain scale hint — judges see "15K Events · 5 Objects" at a glance
-    _ctx_hint = "15K Events &nbsp;·&nbsp; 5 Object Types" if domain == "manufacturing" else "15K Events &nbsp;·&nbsp; 4 Object Types"
+    _sb_n_objects = 5 if domain == "manufacturing" else 4
     st.markdown(
-        f'<p style="color:#94A3B8;font-size:0.7rem;margin:-4px 0 10px 2px;letter-spacing:0.01em;">{_ctx_hint}</p>',
+        f'<div style="display:flex;align-items:center;gap:10px;background:#FFFFFF;'
+        f'border:1px solid #E2E8F0;border-radius:12px;padding:10px 14px;margin:2px 0 12px;">'
+        f'<span style="color:#10B981;font-size:0.85rem;">📈</span>'
+        f'<div><div style="font-size:0.82rem;font-weight:800;color:#0F172A;line-height:1.1;">15K</div>'
+        f'<div style="font-size:0.65rem;color:#94A3B8;font-weight:600;">Events</div></div>'
+        f'<div style="width:1px;height:26px;background:#E2E8F0;"></div>'
+        f'<span style="color:#7C3AED;font-size:0.85rem;">📦</span>'
+        f'<div><div style="font-size:0.82rem;font-weight:800;color:#0F172A;line-height:1.1;">{_sb_n_objects}</div>'
+        f'<div style="font-size:0.65rem;color:#94A3B8;font-weight:600;">Object Types</div></div>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
     # ── Scenario Overview card ────────────────────────────────────────────────
     if domain == "manufacturing":
-        _sc_icon    = "🏭"
+        _sc_icon    = "📊"
         _sc_outcome = "Shipment Delay"
         _sc_objects = "5 Object Types"
         _sc_goal    = "Reduce delays through causal interventions"
     else:
-        _sc_icon    = "🏥"
+        _sc_icon    = "📊"
         _sc_outcome = "Length of Stay"
         _sc_objects = "4 Object Types"
         _sc_goal    = "Reduce hospital stay through process optimisation"
 
     st.markdown(
-        f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;'
-        f'padding:11px 14px;margin-bottom:12px;">'
-        f'<p style="color:#334155;font-size:0.7rem;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.08em;margin:0 0 7px;">{_sc_icon}&nbsp;&nbsp;Scenario Overview</p>'
-        f'<div style="display:grid;grid-template-columns:56px 1fr;gap:2px 8px;'
-        f'font-size:0.78rem;line-height:1.65;">'
+        f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;'
+        f'padding:14px 16px;margin-bottom:12px;">'
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+        f'<div style="width:32px;height:32px;border-radius:9px;background:#DBEAFE;flex-shrink:0;'
+        f'display:flex;align-items:center;justify-content:center;font-size:0.95rem;">{_sc_icon}</div>'
+        f'<p style="color:#334155;font-size:0.72rem;font-weight:800;text-transform:uppercase;'
+        f'letter-spacing:0.06em;margin:0;">Scenario Overview</p>'
+        f'</div>'
+        f'<div style="display:grid;grid-template-columns:56px 1fr;gap:6px 8px;'
+        f'font-size:0.78rem;line-height:1.5;align-items:center;">'
         f'<span style="color:#94A3B8;font-weight:600;font-size:0.7rem;">Outcome</span>'
         f'<span style="color:#0F172A;font-weight:700;">{_sc_outcome}</span>'
         f'<span style="color:#94A3B8;font-weight:600;font-size:0.7rem;">Objects</span>'
-        f'<span style="color:#0F172A;font-weight:700;">{_sc_objects}</span>'
+        f'<span style="color:#0F172A;font-weight:700;">{_sc_objects}'
+        f'&nbsp;&nbsp;<span style="background:#FEF3C7;color:#B45309;font-size:0.62rem;'
+        f'font-weight:800;padding:2px 8px;border-radius:8px;">Active</span></span>'
         f'<span style="color:#94A3B8;font-weight:600;font-size:0.7rem;">Goal</span>'
         f'<span style="color:#475569;font-size:0.73rem;line-height:1.5;">{_sc_goal}</span>'
         f'</div></div>',
         unsafe_allow_html=True,
     )
+    with st.popover("View Scenario Details →", use_container_width=True):
+        st.markdown(
+            f"**Domain:** {domain.title()}\n\n"
+            f"**Outcome variable:** {_sc_outcome}\n\n"
+            f"**Object types:** {_sc_objects}\n\n"
+            f"**Goal:** {_sc_goal}\n\n"
+            f"This scenario is the one currently loaded and driving every "
+            f"tab, the Copilot's grounding context, and the causal pipeline "
+            f"below."
+        )
 
     st.markdown("---")
-
-    # ── Pipeline Controls ──────────────────────────────────────────────────────
-    if st.button("🔄 Regenerate Pipeline", use_container_width=True, type="primary"):
-        _load_data.clear()
-        _build_graph.clear()
-        _discover.clear()
-        _fit_scm.clear()
-        st.session_state.pop("policy_cache", None)
-        st.session_state.pop("robustness_manufacturing", None)
-        st.rerun()
-
-    st.markdown(
-        '<p style="color:#10B981;font-size:0.7rem;font-weight:600;margin:5px 0 12px 2px;">'
-        '🟢 &nbsp;Status: Fresh</p>',
-        unsafe_allow_html=True,
-    )
 
     _stage_ph = st.empty()
 
     st.markdown("---")
 
-    # ── 4. Expanders ───────────────────────────────────────────
-    with st.expander("⚙️ Advanced Configuration", expanded=False):
-        seed = st.number_input("Random Seed", min_value=0, max_value=9999, value=42, step=1)
-        if domain == "custom":
-            n_events = 15000
-        else:
-            n_events = st.slider("Event Count", min_value=500, max_value=25000, value=15000, step=500)
+    # Fixed pipeline parameters — no longer user-configurable.
+    seed = 42
+    n_events = 15000
 
-    with st.expander("💡 How It Works", expanded=False):
+    with st.expander("💡 **How It Works**  \nLearn how CausalOCPM works", expanded=False):
         st.markdown(
             "<span style='font-size:0.85rem; color:#475569;'>"
             "CausalOCPM integrates Object-Centric Process Mining with Structural "
@@ -1134,6 +1144,7 @@ else:
     with st.spinner("Fitting Structural Causal Models (Phase 4/4)…"):
         try:
             scm, coefs = _fit_scm(domain, n_int, seed_int)
+            coefs = coefs.copy()  # cache_resource returns a shared object; don't mutate it in place
             stage_status["scm"] = "ok"
         except Exception as _e:
             stage_status["scm"] = "err"
@@ -1225,27 +1236,37 @@ for _sk, _sl, _ in _stage_labels:
         f'</div>'
     )
 
+_rdy_pill_bg = "#ECFDF5" if _all_ok else "#FEF2F2"
+_rdy_pill_fg = "#059669" if _all_ok else "#DC2626"
+_rdy_pill_lbl = "Healthy" if _all_ok else "Error"
 _ph_html = (
-    f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;'
-    f'padding:12px 14px;margin-bottom:4px;">'
-    # Ready indicator row
-    f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">'
+    f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:14px;'
+    f'padding:14px 16px;margin-bottom:4px;">'
+    # Ready indicator row + status pill
+    f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+    f'<div style="display:flex;align-items:center;gap:6px;">'
     f'<span style="font-size:0.75rem;">{_rdy_dot}</span>'
-    f'<span style="color:{_rdy_col};font-size:0.88rem;font-weight:700;">{_rdy_lbl}</span>'
+    f'<span style="color:{_rdy_col};font-size:0.85rem;font-weight:700;">{_rdy_lbl}</span>'
     f'</div>'
-    # Three KPI tiles
-    f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px;">'
-    f'<div style="background:#fff;border:1px solid #E2E8F0;border-radius:6px;padding:5px 4px;text-align:center;">'
-    f'<div style="color:#94A3B8;font-size:0.56rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Events</div>'
+    f'<span style="background:{_rdy_pill_bg};color:{_rdy_pill_fg};font-size:0.62rem;'
+    f'font-weight:800;padding:3px 10px;border-radius:8px;">{_rdy_pill_lbl}</span>'
+    f'</div>'
+    # Three KPI tiles, each with its own small colored icon
+    f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">'
+    f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:8px 4px;text-align:center;">'
+    f'<div style="color:#10B981;font-size:0.8rem;margin-bottom:2px;">📈</div>'
     f'<div style="color:#0F172A;font-size:0.86rem;font-weight:800;line-height:1.25;">{_n_ev_k}</div>'
+    f'<div style="color:#94A3B8;font-size:0.6rem;font-weight:700;">Events</div>'
     f'</div>'
-    f'<div style="background:#fff;border:1px solid #E2E8F0;border-radius:6px;padding:5px 4px;text-align:center;">'
-    f'<div style="color:#94A3B8;font-size:0.56rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Links</div>'
+    f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:8px 4px;text-align:center;">'
+    f'<div style="color:#3B82F6;font-size:0.8rem;margin-bottom:2px;">🔗</div>'
     f'<div style="color:#0F172A;font-size:0.86rem;font-weight:800;line-height:1.25;">{_n_lnk}</div>'
+    f'<div style="color:#94A3B8;font-size:0.6rem;font-weight:700;">Links</div>'
     f'</div>'
-    f'<div style="background:#fff;border:1px solid #E2E8F0;border-radius:6px;padding:5px 4px;text-align:center;">'
-    f'<div style="color:#94A3B8;font-size:0.56rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">SCM</div>'
+    f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:8px 4px;text-align:center;">'
+    f'<div style="color:#8B5CF6;font-size:0.8rem;margin-bottom:2px;">◆</div>'
     f'<div style="color:#059669;font-size:0.86rem;font-weight:800;line-height:1.25;">✓</div>'
+    f'<div style="color:#94A3B8;font-size:0.6rem;font-weight:700;">SCM</div>'
     f'</div>'
     f'</div>'
     # Expandable stage list (native HTML <details>)
@@ -1333,12 +1354,93 @@ hero_ph.markdown(
 
 # ── TAB LAYOUT ────────────────────────────────────────────────────────────────
 tab0, tab1, tab3, tab6, tab7 = st.tabs([
-    "① Overview",
-    "② Data & Discovery",
-    "③ Model & Impact",
-    "④ Decision Intelligence",
-    "⑤ Copilot",
+    "**Overview**  \nProcess summary",
+    "**Data & Discovery**  \nExplore your data",
+    "**Model & Impact**  \nCausal analysis",
+    "**Decision Intelligence**  \nInsights to action",
+    "**Copilot**  \nAI assistant",
 ])
+
+# ── TAB BAR — icon badge + title + subtitle, one color identity per tab ──────
+# st.tabs() labels render through Streamlit's markdown engine (confirmed via
+# the actual DOM: <p><strong>Title</strong><br>Subtitle</p>), so real "**bold**"
+# + a markdown hard-break ("  \n") above produce genuine <strong> and <br>
+# elements — no need to fake multi-line text with CSS ::first-line tricks.
+_TAB_ACCENTS = [
+    ("#10B981", "#059669", "📊"),  # 1 Overview
+    ("#3B82F6", "#2563EB", "🔍"),  # 2 Data & Discovery
+    ("#8B5CF6", "#7C3AED", "🔗"),  # 3 Model & Impact
+    ("#F59E0B", "#D97706", "💡"),  # 4 Decision Intelligence
+    ("#06B6D4", "#0891B2", "✨"),  # 5 Copilot
+]
+_tab_rules = ["""
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+    background: #FBFCFE !important;
+    border: 1px solid #EDF0F5 !important;
+    border-radius: 20px !important;
+    padding: 10px !important;
+    gap: 4px !important;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 14px 24px 14px 20px !important;
+    min-height: 76px !important;
+    border-radius: 14px !important;
+    border-right: 1px solid #EDF0F5 !important;
+    flex-grow: 1 !important;
+    flex-shrink: 1 !important;
+    flex-basis: 0 !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab"]:last-child { border-right: none !important; }
+/* BaseWeb's own sliding "active tab" indicator — a hardcoded solid-green bar
+   independent of the per-tab colored underline above. Left alone, it renders
+   as a stray green line under whichever tab is active regardless of that
+   tab's own color (e.g. still green under the cyan Copilot tab), which reads
+   as a rendering glitch. The per-tab border-bottom rules already do this
+   job correctly, so BaseWeb's version is just hidden. */
+[data-baseweb="tab-highlight"] { display: none !important; }
+[data-testid="stTabs"] [data-baseweb="tab"]::before {
+    flex-shrink: 0;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
+    transition: background 0.18s ease;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] [data-testid="stMarkdownContainer"] p {
+    margin: 0 !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    color: #94A3B8 !important;
+    line-height: 1.5 !important;
+    text-align: left !important;
+}
+[data-testid="stTabs"] [data-baseweb="tab"] [data-testid="stMarkdownContainer"] p strong {
+    display: block;
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    margin-bottom: 1px;
+}
+"""]
+for _i, (_c1, _c2, _icon) in enumerate(_TAB_ACCENTS, start=1):
+    _tab_rules.append(f"""
+[data-testid="stTabs"] [data-baseweb="tab"]:nth-child({_i}) {{ border-bottom: 3px solid {_c1} !important; }}
+[data-testid="stTabs"] [data-baseweb="tab"]:nth-child({_i})::before {{ content: "{_icon}"; background: {_c1}1A; }}
+[data-testid="stTabs"] [data-baseweb="tab"]:nth-child({_i}):hover {{ background: {_c1}0D !important; }}
+[data-testid="stTabs"] [data-baseweb="tab"]:nth-child({_i})[aria-selected="true"] {{
+    background: {_c1}14 !important;
+    border: 1px solid {_c1}40 !important;
+    border-bottom: 3px solid {_c1} !important;
+    box-shadow: 0 2px 8px {_c1}26 !important;
+}}
+[data-testid="stTabs"] [data-baseweb="tab"]:nth-child({_i})[aria-selected="true"]::before {{ background: {_c1}; }}
+""")
+st.markdown("<style>" + "\n".join(_tab_rules) + "</style>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 0 — OVERVIEW & EXECUTIVE SUMMARY

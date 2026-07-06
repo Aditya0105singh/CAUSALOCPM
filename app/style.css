@@ -102,23 +102,11 @@ code, pre, .stCode {
     flex-shrink: 0 !important;
     transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
 }
-[data-testid="stTabs"] [data-baseweb="tab"]:hover {
-    background: rgba(16, 185, 129, 0.08) !important;
-    color: #1E293B !important;
-}
-/* `[data-baseweb="tab"][aria-selected="true"]` (2 attrs) ties on specificity
-   with `[data-baseweb="tab"]:hover` (1 attr + 1 pseudo-class = same weight)
-   below — without the extra attribute here, hovering the already-active tab
-   let the plain hover rule win and the active pill silently reverted to the
-   hover tint. Matching the attribute count keeps the active style on top
-   even while hovered. */
-[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"] {
-    color: #10B981 !important;
-    font-weight: 600 !important;
-}
-[data-testid="stTabs"] [data-baseweb="tab"][aria-selected="true"]:hover {
-    color: #10B981 !important;
-}
+/* Hover and active-state colors are per-tab (each tab has its own identity
+   color, not one shared green) and defined once, in tab_overview.py's tab
+   bar accent block, alongside the underline colors they must match — see
+   the comment there for why this single-source-of-truth setup replaced the
+   green-only rules that used to live here and in dashboard.py. */
 [data-testid="stTabPanel"] {
     padding-top: 22px !important;
     animation: fadeSlideUp 0.3s ease-out forwards !important;
@@ -475,16 +463,69 @@ ul[role="listbox"] {
     color: #0F172A !important;
 }
 
-/* 4. Radio Buttons - Smooth hover interactions */
-[data-testid="stSidebar"] [data-testid="stRadio"] label {
-    padding: 6px 10px !important;
-    border-radius: 8px !important;
-    margin-bottom: 2px !important;
-    transition: background 0.2s ease, transform 0.15s ease !important;
+/* 4. Radio Buttons — domain-selection cards (icon badge, bold title +
+   subtitle, tinted background + dot when selected). The label text is real
+   markdown ("**Title**  \nSubtitle" — a hard line-break makes a genuine
+   <br>), so only the box/icon/selected-state styling below is CSS. */
+[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] {
+    gap: 10px !important;
 }
-[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-    background: rgba(16, 185, 129, 0.06) !important;
-    transform: translateX(3px) !important;
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 14px !important;
+    padding: 12px 16px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    position: relative !important;
+    transition: border-color 0.15s ease, background 0.15s ease !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:hover {
+    border-color: #CBD5E1 !important;
+    transform: none !important;
+}
+/* BaseWeb's own radio circle is replaced by the icon badge (::before)
+   and, when selected, a small dot (::after) — hidden rather than styled. */
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+    display: none !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]::before {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:nth-of-type(1)::before { content: "🏭"; background: #D1FAE5; }
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:nth-of-type(2)::before { content: "🏥"; background: #EDE9FE; }
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] p {
+    margin: 0 !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    color: #64748B !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] p strong {
+    display: block;
+    font-size: 0.92rem !important;
+    font-weight: 800 !important;
+    color: #0F172A !important;
+    margin-bottom: 1px;
+}
+/* :has() here is scoped to a single label's OWN descendant input — not a
+   shared ancestor several levels up — so this doesn't have the cascading-
+   match problem a page-wide :has() hit earlier in the Copilot tab work. */
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
+    background: #ECFDF5 !important;
+    border-color: #A7F3D0 !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked)::after {
+    content: "";
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #10B981;
 }
 
 /* 5. Primary CTA Button (Regenerate Pipeline) */

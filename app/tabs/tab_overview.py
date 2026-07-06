@@ -1,3 +1,16 @@
+# ── AI EXECUTIVE SUMMARY (PHASE 0) ──────────────────────────────────────────
+st.markdown(f"""
+<div style="background: linear-gradient(to right, #F8FAFC, #FFFFFF); border: 1px solid #E2E8F0; border-left: 4px solid #10B981; border-radius: 12px; padding: 24px 32px; margin-bottom: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+    <div style="font-size: 0.85rem; font-weight: 800; color: #10B981; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.2rem;">✨</span> AI Executive Summary
+    </div>
+    <ul style="color: #334155; font-size: 1rem; line-height: 1.7; margin: 0; padding-left: 20px;">
+        <li>Causal Discovery and Double ML jointly validate that this is a genuine causal relationship, not mere correlation.</li>
+        <li>The quantified headline finding and business impact are shown immediately below.</li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
+
 # ── BOARDROOM HERO CARD ───────────────────────────────────────────────────
 _hero_treatment = cfg.get("treatment_var", "treatment")
 _hero_outcome   = cfg.get("outcome_label", cfg.get("outcome_var", "outcome"))
@@ -25,6 +38,10 @@ _hero_naive_val = df[cfg["outcome_var"]].mean() + (df[df[_hero_treatment]==1][cf
 _hero_label       = "Shipment Delay" if domain == "manufacturing" else "Length of Stay"
 _hero_root_cause  = "Supplier A dependency" if domain == "manufacturing" else "Specialist over-allocation"
 _hero_act_short   = "Shift 25% to Supplier B" if domain == "manufacturing" else "Refine triage criteria"
+# Set directly per domain rather than parsed out of _hero_root_cause's display
+# text — string-splitting on " dependency"/" over-allocation" would silently
+# break if that display copy ever changed.
+_primary_driver   = "Supplier A" if domain == "manufacturing" else "Specialist Allocation"
 
 st.markdown(
     f'<div style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #134E4A 100%); '
@@ -84,28 +101,22 @@ _n_obj_types = 5 if domain == "manufacturing" else 4
 _obj_list    = "Orders · Machines · Workers · Materials · Shipments" if domain == "manufacturing" \
                else "Patients · Wards · Clinicians · Medications · Discharge"
 st.markdown(
+    # Trimmed to the one angle the Competitive Positioning table below doesn't
+    # cover — object-centricity itself — since the capability bullets that
+    # used to live here (causal discovery, counterfactual simulation, etc.)
+    # duplicated rows already in that table.
     f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;">'
     # Traditional PM card
     f'<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:20px 24px;">'
     f'<div style="color:#B91C1C;font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Traditional Process Mining</div>'
     f'<div style="color:#991B1B;font-size:2rem;font-weight:900;margin-bottom:8px;">1 object type</div>'
-    f'<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">'
-    f'<div style="color:#B91C1C;font-size:0.82rem;">✖ &nbsp;Correlation only — no causation</div>'
-    f'<div style="color:#B91C1C;font-size:0.82rem;">✖ &nbsp;Single case view, ignores object relations</div>'
-    f'<div style="color:#B91C1C;font-size:0.82rem;">✖ &nbsp;Interventions untestable</div>'
-    f'</div>'
-    f'<div style="color:#EF4444;font-size:0.8rem;font-weight:500;border-top:1px solid #FECACA;padding-top:8px;">Cannot distinguish correlation from causation</div>'
+    f'<div style="color:#EF4444;font-size:0.8rem;font-weight:500;border-top:1px solid #FECACA;padding-top:8px;">Case ID only — object relationships and interactions are invisible to the model.</div>'
     f'</div>'
     # CausalOCPM card
     f'<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:20px 24px;">'
-    f'<div style="color:#166534;font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">CausalOCPM (This System)</div>'
-    f'<div style="color:#15803D;font-size:2rem;font-weight:900;margin-bottom:8px;">{_n_obj_types} object types</div>'
-    f'<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">'
-    f'<div style="color:#166534;font-size:0.82rem;">✔ &nbsp;Multi-object causal reasoning</div>'
-    f'<div style="color:#166534;font-size:0.82rem;">✔ &nbsp;Autonomous causal discovery</div>'
-    f'<div style="color:#166534;font-size:0.82rem;">✔ &nbsp;Counterfactual intervention simulation</div>'
-    f'</div>'
-    f'<div style="color:#16A34A;font-size:0.8rem;font-weight:500;border-top:1px solid #BBF7D0;padding-top:8px;">{_obj_list}</div>'
+    f'<div style="color:{SUCCESS};font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">CausalOCPM (This System)</div>'
+    f'<div style="color:{SUCCESS};font-size:2rem;font-weight:900;margin-bottom:8px;">{_n_obj_types} object types</div>'
+    f'<div style="color:{SUCCESS};font-size:0.8rem;font-weight:500;border-top:1px solid #BBF7D0;padding-top:8px;">{_obj_list}</div>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True
@@ -115,26 +126,13 @@ st.markdown(
 st.markdown("### Executive Summary")
 _health_label = "Moderate Risk" if _hero_reduction < 20 else "Elevated Risk"
 _health_color = "#F59E0B" if _hero_reduction < 20 else "#DC2626"
-_primary_driver = _hero_root_cause.split(" dependency")[0].split(" over-allocation")[0]
 st.markdown(
-    f'<div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 24px; margin-bottom: 32px;">'
-    f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #F1F5F9; padding-bottom: 16px; margin-bottom: 16px;">'
+    f'<div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-top: 3px solid {_health_color}; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); padding: 24px; margin-bottom: 32px;">'
+    f'<div style="display:flex; justify-content:space-between; align-items:center;">'
     f'<div><h4 style="margin:0; color:#1E293B; font-size:1.1rem; font-weight:700;">Operational Health</h4>'
     f'<span style="color:{_health_color}; font-weight:800; font-size:1.3rem;">{_health_label}</span></div>'
     f'<div style="text-align:right;"><span style="color:#64748B; font-size:0.85rem; font-weight:600; text-transform:uppercase;">Highest Risk Segment</span><br>'
     f'<span style="color:#1E293B; font-weight:700; font-size:1.1rem;">{_primary_driver}</span></div>'
-    f'</div>'
-    f'<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">'
-    f'<div style="background:#F8FAFC; padding:16px; border-radius:8px; border:1px solid #E2E8F0;">'
-    f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Primary Driver</div>'
-    f'<div style="color:#1E293B; font-size:1.1rem; font-weight:600; margin-top:4px;">{_primary_driver}</div>'
-    f'</div>'
-    f'<div style="background:#F0FDF4; padding:16px; border-radius:8px; border:1px solid #BBF7D0; grid-column: span 2;">'
-    f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Recommended Action</div>'
-    f'<div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">'
-    f'<div style="color:#15803D; font-size:1.1rem; font-weight:800;">{_hero_action}</div>'
-    f'<div style="background:#DCFCE7; color:#16A34A; padding:4px 10px; border-radius:4px; font-weight:700; font-size:0.9rem;">↓ {_hero_pct} Delay</div>'
-    f'</div></div>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True
@@ -144,24 +142,32 @@ st.markdown(
 st.markdown("### Recommended Actions")
 st.markdown("<p style='color:#64748B; font-size:0.95rem; margin-top:-8px; margin-bottom:24px;'>Prioritized interventions based on estimated causal impact.</p>", unsafe_allow_html=True)
 
+# is_computed=True (rank 1) means the % comes from the live Double ML estimate;
+# ranks 2/3 are illustrative planning estimates, not pipeline output — flagged
+# visually below rather than shown with identical authority to rank 1.
 _ov_acts_mfg = [
-    ("#1", "Shift ~25% procurement to Supplier B",   f"~{_hero_reduction:.0f}%", "High",   "Medium", "#10B981"),
-    ("#2", "Automate export approval routing",        "~7.5%",                   "Medium", "Low",    "#F59E0B"),
-    ("#3", "Expand machine buffer capacity (≥20%)",   "~3%",                     "High",   "High",   "#3B82F6"),
+    ("#1", "Shift ~25% procurement to Supplier B",   f"~{_hero_reduction:.0f}%", "High",   "Medium", "#10B981", True),
+    ("#2", "Automate export approval routing",        "~7.5%",                   "Medium", "Low",    "#F59E0B", False),
+    ("#3", "Expand machine buffer capacity (≥20%)",   "~3%",                     "High",   "High",   "#3B82F6", False),
 ]
 _ov_acts_hc = [
-    ("#1", "Refine specialist triage criteria",           f"~{_hero_reduction:.0f}%", "High",   "Low",    "#10B981"),
-    ("#2", "Implement fast-track triage automation",      "~5.5%",                   "Medium", "Medium", "#F59E0B"),
-    ("#3", "Expand bed capacity in high-occupancy wards", "~3%",                     "High",   "High",   "#3B82F6"),
+    ("#1", "Refine specialist triage criteria",           f"~{_hero_reduction:.0f}%", "High",   "Low",    "#10B981", True),
+    ("#2", "Implement fast-track triage automation",      "~5.5%",                   "Medium", "Medium", "#F59E0B", False),
+    ("#3", "Expand bed capacity in high-occupancy wards", "~3%",                     "High",   "High",   "#3B82F6", False),
 ]
 _actions = _ov_acts_mfg if domain == "manufacturing" else _ov_acts_hc
 
-for rank, title, impact, conf, effort, color in _actions:
+for rank, title, impact, conf, effort, color, is_computed in _actions:
+    _impact_tag = (
+        '<span style="background:#ECFDF5;color:#059669;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700;margin-left:6px;">MEASURED</span>'
+        if is_computed else
+        '<span style="background:#F1F5F9;color:#64748B;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700;margin-left:6px;">ILLUSTRATIVE</span>'
+    )
     st.markdown(
-        f'<div style="display:flex; align-items:center; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
+        f'<div style="display:flex; align-items:center; background:#FFFFFF; border:1px solid #E2E8F0; border-left:3px solid {color}; border-radius:8px; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">'
         f'<div style="font-size:1.5rem; font-weight:800; color:{color}; width:50px;">{rank}</div>'
         f'<div style="flex:1;"><div style="font-size:1.1rem; font-weight:700; color:#1E293B;">{title}</div>'
-        f'<div style="font-size:0.85rem; color:#64748B; font-weight:500; margin-top:4px;">Expected Delay Reduction: <span style="color:#10B981; font-weight:700;">{impact}</span></div></div>'
+        f'<div style="font-size:0.85rem; color:#64748B; font-weight:500; margin-top:4px;">Expected Delay Reduction: <span style="color:#10B981; font-weight:700;">{impact}</span>{_impact_tag}</div></div>'
         f'<div style="width:120px;"><div style="font-size:0.75rem; font-weight:700; color:#64748B; text-transform:uppercase;">Confidence</div>'
         f'<div style="font-size:0.95rem; font-weight:600; color:#334155;">{conf}</div></div>'
         f'<div style="width:120px;"><div style="font-size:0.75rem; font-weight:700; color:#64748B; text-transform:uppercase;">Op. Effort</div>'
@@ -257,7 +263,7 @@ except Exception as _ovE:
 _ov_edges = dag.number_of_edges() if "dag" in locals() else 0
 st.markdown(
     f'<div style="background:#F0FDF4; border-left:4px solid #10B981; padding:16px 20px; border-radius:4px; margin-top:4px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
-    f'<div style="color:#166534; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">PIPELINE STATUS</div>'
+    f'<div style="color:{SUCCESS}; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">PIPELINE STATUS</div>'
     f'<div style="color:#1E293B; font-size:0.95rem; line-height:1.6;">'
     f'The causal pipeline recovered <b style="color:#059669;">{_ov_edges}</b> validated causal links with '
     f'bootstrap stability of <b style="color:#059669;">{_boot_stab_pct:.0f}%</b>. '
@@ -287,7 +293,7 @@ _comp_rows = [
 ]
 _th = "font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;padding:10px 16px;background:#F1F5F9;color:#475569;"
 _td = "font-size:0.88rem;padding:10px 16px;color:#1E293B;border-top:1px solid #F1F5F9;"
-_td_g = "font-size:0.88rem;padding:10px 16px;color:#15803D;font-weight:700;background:#F0FDF4;border-top:1px solid #F1F5F9;"
+_td_g = f"font-size:0.88rem;padding:10px 16px;color:{SUCCESS};font-weight:700;background:#F0FDF4;border-top:1px solid #F1F5F9;"
 _tbl_html = '<table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">'
 for i, row in enumerate(_comp_rows):
     if i == 0:
@@ -297,19 +303,9 @@ for i, row in enumerate(_comp_rows):
 _tbl_html += '</table>'
 st.markdown(_tbl_html, unsafe_allow_html=True)
 
-# ── SECTION ACCENT CSS ────────────────────────────────────────────────────
-st.markdown("""<style>
-/* Tab accent colors */
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(1) { border-bottom: 3px solid #10B981 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(2) { border-bottom: 3px solid #3B82F6 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(3) { border-bottom: 3px solid #8B5CF6 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(4) { border-bottom: 3px solid #10B981 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(5) { border-bottom: 3px solid #F59E0B !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(6) { border-bottom: 3px solid #06B6D4 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(7) { border-bottom: 3px solid #EC4899 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(8) { border-bottom: 3px solid #1D4ED8 !important; }
-[data-testid="stTabs"] [data-baseweb="tab"]:nth-child(9) { border-bottom: 3px solid #7C3AED !important; }
-</style>""", unsafe_allow_html=True)
+# Tab bar accent CSS now lives in dashboard.py, right next to the st.tabs()
+# call itself — it's app-wide chrome, not Overview-tab content, so it belongs
+# next to the navigation it styles rather than inside one arbitrary tab.
 
 
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

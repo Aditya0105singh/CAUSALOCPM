@@ -22,12 +22,12 @@ Naive analysis overstates Supplier-A's causal contribution to delays by ~20%. **
 
 ## Key Features
 
-- **End-to-End Pipeline**: From OCEL 2.0 event logs to actionable causal insights.
+- **End-to-End Pipeline**: From OCEL 2.0 event logs to actionable causal insights, utilizing **pm4py** for process mining.
 - **Automated Causal Discovery**: Uses the PC Algorithm (Fisher's Z) with domain knowledge constraints to discover causal DAGs.
 - **Structural Causal Modeling**: Fits mixed SCMs (Logistic, Linear, Gradient Boosting) without global linearity assumptions.
-- **Counterfactual Policy Simulation**: DoWhy-powered backdoor adjustment and sensitivity analysis across random seeds.
+- **Counterfactual Policy Simulation**: Double Machine Learning (DML) with DoWhy-powered backdoor adjustment, CATE analysis, E-value computations, and 10-seed robustness testing.
 - **SCM-Grounded Attribution**: Understand case-level root causes using advanced SHAP techniques applied directly to structural equations.
-- **Groq-Powered Decision Intelligence Copilot**: An integrated LLM agent (Llama 3.1 8B via Groq) that translates complex causal math into instant, board-ready executive summaries.
+- **Cerebras-Powered Decision Intelligence Copilot**: An integrated LLM agent (**Gemma 4 31B** via Cerebras) with a full offline fallback system that translates complex causal math into instant, board-ready executive summaries.
 - **Interactive Streamlit Dashboard**: A 5-tab UI featuring an interactive what-if causal simulator, AI copilot, and case attribution.
 
 ---
@@ -134,13 +134,13 @@ streamlit run causal_ocpm/app/dashboard.py
 
 ## The Dashboard Experience
 
-The interactive dashboard is divided into 5 specialized tabs:
+The interactive dashboard is built using Streamlit and features 5 distinct visualizations grouped into 5 specialized experiences:
 
 1. **Overview**: Executive summary — headline causal finding, expected savings, and top recommended interventions.
 2. **Data & Discovery**: Event log summaries, object-type interaction graphs, learned causal DAG, and a domain-knowledge ablation study.
-3. **Model & Impact**: An **Interactive What-If Causal Simulator**, SCM summary, treatment-effect heterogeneity, and SCM-grounded SHAP waterfall attribution.
+3. **Model & Impact**: An **Interactive What-If Causal Simulator**, SCM summary, treatment-effect heterogeneity (CATE), and SCM-grounded SHAP waterfall attribution.
 4. **Decision Intelligence**: A boardroom-style executive report.
-5. **Causal Copilot**: A Groq-powered conversational agent (Llama 3.1 8B) for answering free-text questions grounded in live pipeline output.
+5. **Causal Copilot**: A Cerebras-powered conversational agent (Gemma 4 31B) for answering free-text questions grounded in live pipeline output, backed by an offline fallback system.
 
 ---
 

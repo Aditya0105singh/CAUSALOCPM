@@ -1,3 +1,18 @@
+# ── AI CAUSAL INTERPRETATION (PHASE 0) ──────────────────────────────────────
+st.markdown(f"""
+<div style="background: linear-gradient(to right, #F8FAFC, #FFFFFF); border: 1px solid #E2E8F0; border-left: 4px solid #3B82F6; border-radius: 12px; padding: 24px 32px; margin-bottom: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+    <div style="font-size: 0.85rem; font-weight: 800; color: #3B82F6; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.2rem;">✨</span> AI Causal Interpretation
+    </div>
+    <ul style="color: #334155; font-size: 1rem; line-height: 1.7; margin: 0; padding-left: 20px;">
+        <li>The Structural Causal Model successfully quantified the strength of the discovered causal links.</li>
+        <li>The What-If Simulator allows you to dynamically adjust operational levers and observe their impact.</li>
+        <li>Treatment effects reveal that interventions have varying impacts depending on operational segments (CATE).</li>
+        <li>Use the simulator below to compare intervention scenarios before deployment.</li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
+
 if is_custom:
     accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))
 
@@ -15,19 +30,25 @@ with t3_col_eq:
         metric = eq['metric_label']
         
         if mt == "logistic":
-            status = "✓ Reliable Classification"
-            color = "#059669"
+            status = "Reliable Classification"
         elif mt == "gradient_boosting":
-            status = "✓ High Confidence"
-            color = "#059669"
+            status = "High Confidence"
         else:
-            status = "✓ Linear Fit"
+            status = "Linear Fit"
+        # Color reflects the fit quality itself (same thresholds used for
+        # Model Confidence elsewhere in this tab), not just which model ran.
+        if val >= 0.9:
             color = "#059669"
+        elif val >= 0.7:
+            color = "#D97706"
+        else:
+            color = "#DC2626"
+        status = f"{'✓' if val >= 0.7 else '⚠'} {status}"
             
         node_clean = node.replace("_", " ").title()
         
         cards_html += (
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid {color}; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
             f'<div style="color:#1E293B; font-size:1.1rem; font-weight:700; margin-bottom:8px;">{node_clean}</div>'
             f'<div style="color:#64748B; font-size:0.9rem; margin-bottom:12px;">{mt_display}</div>'
             f'<div style="display:flex; justify-content:space-between; align-items:center;">'
@@ -65,23 +86,20 @@ if not coefs.empty:
     st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Model Validation Summary</h4>", unsafe_allow_html=True)
     
     val_html = (
-        f'<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px;">'
+        f'<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">'
         f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Relationships Recovered</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#15803D; margin-top:4px;">{recovered_edges} / {total_edges}</div>'
+        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Relationships Recovered</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{SUCCESS}; margin-top:4px;">{recovered_edges} / {total_edges}</div>'
+        f'<div style="font-size:0.8rem; font-weight:600; color:{SUCCESS}; margin-top:2px;">{sign_consistency:.0f}% sign-consistent</div>'
         f'</div>'
         f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Mean Relative Error</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#15803D; margin-top:4px;">{mean_error_str}</div>'
+        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Mean Relative Error</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{SUCCESS}; margin-top:4px;">{mean_error_str}</div>'
         f'</div>'
         f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Sign Consistency</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#15803D; margin-top:4px;">{sign_consistency:.0f}%</div>'
-        f'</div>'
-        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:#166534; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Strongest Recovery</div>'
-        f'<div style="font-size:1rem; font-weight:700; color:#15803D; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{strongest_recovery}">{strongest_recovery}</div>'
-        f'<div style="font-size:0.8rem; font-weight:600; color:#166534; margin-top:2px;">{strongest_err_str}</div>'
+        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Strongest Recovery</div>'
+        f'<div style="font-size:1rem; font-weight:700; color:{SUCCESS}; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{strongest_recovery}">{strongest_recovery}</div>'
+        f'<div style="font-size:0.8rem; font-weight:600; color:{SUCCESS}; margin-top:2px;">{strongest_err_str}</div>'
         f'</div>'
         f'</div>'
     )
@@ -245,6 +263,23 @@ def _live_coef(parent, child, default):
 _sim_mfg_bl = round(float(df[cfg["outcome_var"]].mean()), 2) if cfg.get("outcome_var") in df.columns else 8.2
 _sim_hc_bl  = round(float(df[cfg["outcome_var"]].mean()), 2) if cfg.get("outcome_var") in df.columns else 5.27
 
+# Effect-size constants used both by the compute functions below and by the
+# lever sliders' help= text further down, so the displayed claim can never
+# silently drift from the coefficient actually applied.
+_MFG_EFFECTS = {
+    "export_reduction_pct":    35,    # exp_eff = -35% of BL_APD
+    "machine_queue_units":     1.2,   # cap_eff — absolute units removed from queue
+    "workforce_per_worker":    0.3,   # wf_eff per additional worker (units)
+    "approval_automation_pct": 50,    # auto_eff = -50% of BL_APD
+    "batching_days":           0.2,   # d_batch — flat delay reduction (days)
+    "carrier_per_10pct_days":  0.08,  # d_carrier per +10% express carrier usage
+}
+_HC_EFFECTS = {
+    "nurse_per_staff_days": 0.15,  # nurse_eff per additional nursing staff
+    "triage_days":          0.30,  # triage_eff — flat delay reduction (days)
+}
+
+
 def _compute_mfg(levers):
     C_sup_mlt = _live_coef("supplier_a", "material_lead_time", 7.0)
     C_mlt_del = _live_coef("material_lead_time", "shipment_delay", 0.9)
@@ -261,12 +296,12 @@ def _compute_mfg(levers):
     mlt_pre = BL_MLT + C_sup_mlt * (sup_a - SUP_BASE)
     mlt_val = mlt_pre * mlt_factor
 
-    wf_eff  = -0.3 * levers["additional_workforce"]
-    cap_eff = -1.2 if levers["machine_capacity_expanded"] else 0.0
+    wf_eff  = -_MFG_EFFECTS["workforce_per_worker"] * levers["additional_workforce"]
+    cap_eff = -_MFG_EFFECTS["machine_queue_units"] if levers["machine_capacity_expanded"] else 0.0
     mql_val = max(0.0, BL_MQL + wf_eff + cap_eff)
 
-    exp_eff  = -0.35 * BL_APD if levers["export_flag_reduction"] else 0.0
-    auto_eff = -0.50 * BL_APD if levers["approval_automation"]    else 0.0
+    exp_eff  = -_MFG_EFFECTS["export_reduction_pct"] / 100 * BL_APD if levers["export_flag_reduction"] else 0.0
+    auto_eff = -_MFG_EFFECTS["approval_automation_pct"] / 100 * BL_APD if levers["approval_automation"] else 0.0
     q_eff    = C_mql_apd * (mql_val - BL_MQL)
     apd_val  = max(0.0, BL_APD + exp_eff + auto_eff + q_eff)
 
@@ -274,8 +309,8 @@ def _compute_mfg(levers):
     d_ltmode  = C_mlt_del * mlt_pre * (mlt_factor - 1.0)
     d_machine = C_apd_del * q_eff
     d_appr    = C_apd_del * (exp_eff + auto_eff)
-    d_carrier = -0.008 * (levers["carrier_express_pct"] - CAR_BASE)
-    d_batch   = -0.20 if levers["order_batching"] else 0.0
+    d_carrier = -_MFG_EFFECTS["carrier_per_10pct_days"] / 10 * (levers["carrier_express_pct"] - CAR_BASE)
+    d_batch   = -_MFG_EFFECTS["batching_days"] if levers["order_batching"] else 0.0
 
     pred = max(0.5, BL_DEL + d_sup + d_ltmode + d_machine + d_appr + d_carrier + d_batch)
     imp  = (BL_DEL - pred) / BL_DEL * 100.0
@@ -325,8 +360,8 @@ def _compute_hc(levers):
         levers["diagnostic_speed_mode"]]
 
     bed_eff    = -0.4 if levers["bed_capacity_expanded"] else 0.0
-    nurse_eff  = -0.15 * levers["additional_nursing_staff"]
-    triage_eff = -0.30 if levers["triage_automation"] else 0.0
+    nurse_eff  = -_HC_EFFECTS["nurse_per_staff_days"] * levers["additional_nursing_staff"]
+    triage_eff = -_HC_EFFECTS["triage_days"] if levers["triage_automation"] else 0.0
     fast_eff   = -0.025 * (levers["fast_track_eligibility_pct"] - FAST_BASE)
 
     d_spec    = 1.8  * (spec_prob - BL_SPEC)
@@ -444,35 +479,35 @@ with _lcol:
             _lv["export_flag_reduction"] = st.toggle(
                 "Streamline Export Documentation",
                 _lv["export_flag_reduction"], key="lv_exp_flag",
-                help="Reduces export-related approval delays ~35%",
+                help=f"Reduces export-related approval delays ~{_MFG_EFFECTS['export_reduction_pct']}%",
             )
         with st.expander("⚙️ Machine & Capacity", expanded=True):
             _lv["machine_capacity_expanded"] = st.toggle(
                 "Expand Machine Capacity",
                 _lv["machine_capacity_expanded"], key="lv_mach_cap",
-                help="Adds processing units, reduces Machine Queue ~40%",
+                help=f"Adds processing units, reduces Machine Queue by up to {_MFG_EFFECTS['machine_queue_units']} units",
             )
             _lv["additional_workforce"] = st.slider(
                 "Additional Workforce", 0, 20,
                 _lv["additional_workforce"], 1, key="lv_workforce",
-                help="Each additional worker reduces queue ~0.3 units",
+                help=f"Each additional worker reduces queue ~{_MFG_EFFECTS['workforce_per_worker']} units",
             )
         with st.expander("📋 Approvals & Process", expanded=False):
             _lv["approval_automation"] = st.toggle(
                 "Automate Approval Steps",
                 _lv["approval_automation"], key="lv_appr_auto",
-                help="Reduces Approval Duration ~50%",
+                help=f"Reduces Approval Duration ~{_MFG_EFFECTS['approval_automation_pct']}%",
             )
             _lv["order_batching"] = st.toggle(
                 "Enable Order Batching",
                 _lv["order_batching"], key="lv_batching",
-                help="Reduces order complexity spikes ~20%",
+                help=f"Reduces delay by ~{_MFG_EFFECTS['batching_days']} days",
             )
         with st.expander("🚚 Logistics & Delivery", expanded=False):
             _lv["carrier_express_pct"] = st.slider(
                 "Express Carrier Usage (%)", 0, 100,
                 _lv["carrier_express_pct"], 5, key="lv_carrier",
-                help="Each 10% increase reduces delay ~0.08 days",
+                help=f"Each 10% increase reduces delay ~{_MFG_EFFECTS['carrier_per_10pct_days']} days",
             )
             _lv["material_lead_time_mode"] = st.radio(
                 "Material Lead Time Strategy",
@@ -503,13 +538,13 @@ with _lcol:
             _lv["additional_nursing_staff"] = st.slider(
                 "Additional Nursing Staff", 0, 20,
                 _lv["additional_nursing_staff"], 1, key="lv_nursing",
-                help="Each nurse reduces duration ~0.15 days",
+                help=f"Each nurse reduces duration ~{_HC_EFFECTS['nurse_per_staff_days']} days",
             )
         with st.expander("⚡ Process & Diagnostics", expanded=False):
             _lv["triage_automation"] = st.toggle(
                 "Automate Triage Scoring",
                 _lv["triage_automation"], key="lv_triage_auto",
-                help="Reduces triage-to-treatment delay ~0.3 days",
+                help=f"Reduces triage-to-treatment delay ~{_HC_EFFECTS['triage_days']} days",
             )
             _lv["diagnostic_speed_mode"] = st.radio(
                 "Diagnostic Speed Mode",
@@ -710,7 +745,10 @@ with _rcol:
             f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">{_roi_str}</div></div>'
             f'</div>'
             f'<div style="font-size:0.68rem;color:{SUBTLE};margin-top:5px;font-style:italic;">'
-            f'*SEM-based estimate · $1,200/day/case · 3,000 cases/yr</div>'
+            + (f'*SEM-based estimate · $960/day/order · 300 orders/yr'
+               if _is_mfg_sim else
+               f'*SEM-based estimate · $1,050/day/case · 400 cases/yr')
+            + f'</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -809,17 +847,18 @@ with st.expander("🔬 Live Causal Graph — Intervention Propagation",
         ]
         _dag_edges = [
             ("supplier_a",         "material_lead_time",
-             _lv["supplier_reliability_pct"] != 40),
+             _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
             ("order_complexity",   "machine_queue",  False),
             ("machine_queue",      "approval_duration",
              _lv["machine_capacity_expanded"] or _lv["additional_workforce"] > 0),
             ("export_flag",        "approval_duration",  _lv["export_flag_reduction"]),
             ("material_lead_time", "shipment_delay",
              _lv["material_lead_time_mode"] != "Current" or
-             _lv["supplier_reliability_pct"] != 40),
+             _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
             ("approval_duration",  "shipment_delay",
              _lv["approval_automation"] or _lv["export_flag_reduction"]),
-            ("carrier_express",    "shipment_delay",  _lv["carrier_express_pct"] != 15),
+            ("carrier_express",    "shipment_delay",
+             _lv["carrier_express_pct"] != _MFG_DEFAULTS["carrier_express_pct"]),
             ("order_complexity",   "shipment_delay",  False),
         ]
     else:
@@ -833,7 +872,7 @@ with st.expander("🔬 Live Causal Graph — Intervention Propagation",
         _dag_edges = [
             ("patient_complexity",     "treatment_duration",    False),
             ("specialist_requirement", "treatment_duration",
-             _lv["specialist_allocation_pct"] != 45),
+             _lv["specialist_allocation_pct"] != _HC_DEFAULTS["specialist_allocation_pct"]),
             ("bed_occupancy",          "treatment_duration",    _lv["bed_capacity_expanded"]),
             ("triage_score",           "specialist_requirement", _lv["triage_automation"]),
         ]
@@ -1093,6 +1132,8 @@ st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Investigating Case</
 sel_col, dummy_col = st.columns([1, 2])
 with sel_col:
     selected_case = st.selectbox("Select Case", options=case_ids[:200], index=0, key="case_selector", label_visibility="collapsed")
+    if len(case_ids) > 200:
+        st.caption(f"Showing the first 200 of {len(case_ids):,} cases.")
 case_idx = case_ids.index(selected_case) if selected_case in case_ids else 0
 
 expl           = explain_case(df, scm, case_idx, outcome_var, domain=domain)
@@ -1110,7 +1151,7 @@ if not expl.empty:
     if diff < 0:
         performance = f"outperforming the population average by {abs(diff):.2f} {outcome_label}"
         status_text = "✓ Better than baseline"
-        status_color = "#15803D"
+        status_color = SUCCESS
     else:
         performance = f"underperforming the population average by {abs(diff):.2f} {outcome_label}"
         status_text = "⚠️ Worse than baseline"
@@ -1127,8 +1168,8 @@ if not expl.empty:
         f"Additional interventions targeting controllable factors could further improve the outcome by approximately {attrib_summary['max_reducible_delay']:.2f} {outcome_label}."
     )
     st.markdown(
-        f'<div style="background:#F0FDF4; border-left:4px solid #16A34A; padding:20px; border-radius:4px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
-        f'<div style="color:#166534; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Executive Interpretation</div>'
+        f'<div style="background:#F0FDF4; border-left:4px solid {SUCCESS}; padding:20px; border-radius:4px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
+        f'<div style="color:{SUCCESS}; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Executive Interpretation</div>'
         f'<div style="color:#1E293B; font-size:1.05rem; line-height:1.6;">{exec_text}</div>'
         f'</div>',
         unsafe_allow_html=True
@@ -1144,19 +1185,19 @@ if not expl.empty:
     
     snap_html = (
         f'<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">'
-        f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:16px; border-radius:10px;">'
+        f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid {status_color}; padding:16px; border-radius:10px;">'
         f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Actual Outcome</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#0F172A; margin-top:4px;">{actual:.2f}</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{TEXT}; margin-top:4px;">{actual:.2f}</div>'
         f'<div style="font-size:0.85rem; font-weight:600; color:{status_color}; margin-top:4px;">{status_text}</div>'
         f'</div>'
         f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:16px; border-radius:10px;">'
         f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Complexity Profile</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#0F172A; margin-top:4px;">{comp_text}</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{TEXT}; margin-top:4px;">{comp_text}</div>'
         f'<div style="font-size:0.85rem; font-weight:600; color:#64748B; margin-top:4px;">{comp_val:.0f} / 10</div>'
         f'</div>'
         f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:16px; border-radius:10px;">'
         f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Treatment Strategy</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:#0F172A; margin-top:4px;">{treat_val}</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{TEXT}; margin-top:4px;">{treat_val}</div>'
         f'<div style="font-size:0.85rem; font-weight:600; color:#64748B; margin-top:4px;">{treat_label} applied</div>'
         f'</div>'
         f'</div>'
@@ -1197,19 +1238,21 @@ if not expl.empty:
     col_opp, col_con = st.columns(2)
     with col_opp:
         st.markdown(
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:24px; border-radius:12px; height:100%; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:#0F172A; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#2563EB; margin-right:6px;">●</span> Intervention Opportunities</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid #2563EB; padding:24px; border-radius:12px; height:100%; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
+            f'<div style="color:{TEXT}; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#2563EB; margin-right:6px;">●</span> Intervention Opportunities</div>'
             f'<div style="color:#64748B; font-size:0.9rem; font-weight:600; margin-bottom:16px;">Controllable Factors Contribution</div>'
             f'<div style="font-size:2.4rem; font-weight:800; color:#2563EB; margin-bottom:16px;">{attrib_summary["actionable_total"]:+.2f}</div>'
-            f'<div style="color:#334155; font-size:0.95rem; line-height:1.5;">Operational actions targeting these controllable factors could substantially influence future outcomes. Confidence in causal effect is high.</div>'
+            f'<div style="color:#334155; font-size:0.95rem; line-height:1.5;">Operational actions targeting these controllable factors could substantially influence future outcomes. '
+            f'Confidence in causal effect is <span style="color:{_conf_col};font-weight:700;">{_conf_lbl.lower()}</span> '
+            f'(F1 = {_sim_f1:.2f}).</div>'
             f'</div>',
             unsafe_allow_html=True
         )
         
     with col_con:
         st.markdown(
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:24px; border-radius:12px; height:100%; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:#0F172A; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#64748B; margin-right:6px;">●</span> System Constraints</div>'
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid #94A3B8; padding:24px; border-radius:12px; height:100%; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
+            f'<div style="color:{TEXT}; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#64748B; margin-right:6px;">●</span> System Constraints</div>'
             f'<div style="color:#64748B; font-size:0.9rem; font-weight:600; margin-bottom:16px;">Structural Contribution</div>'
             f'<div style="font-size:2.4rem; font-weight:800; color:#64748B; margin-bottom:16px;">{attrib_summary["structural_total"]:+.2f}</div>'
             f'<div style="color:#334155; font-size:0.95rem; line-height:1.5;">These drivers arise from underlying process characteristics. Altering them may require long-term system-level transformation efforts.</div>'
@@ -1252,7 +1295,7 @@ if not expl.empty:
             val = row['Feature Value']
             
             attr_badge = f'<span style="background:#DBEAFE; color:#1E40AF; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;">Controllable</span>' if attr == 'actionable' else f'<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;">Structural</span>'
-            shap_color = "#16A34A" if shap < 0 else "#DC2626"
+            shap_color = SUCCESS if shap < 0 else ERROR
             
             tbl_rows += (
                 f"<tr>"
@@ -1281,14 +1324,14 @@ with st.expander("Methodological Foundation"):
 _domain_validation_note_html = (
 '<div style="background:#F8FAFC; border:1px solid #CBD5E1; padding:24px; border-radius:12px;">'
 '<div style="text-align:center;">'
-'<h4 style="color:#0F172A; font-weight:900; letter-spacing:-0.5px; margin-bottom:8px;">DOMAIN-AGNOSTIC CAUSAL INTELLIGENCE</h4>'
+'<h4 style="color:#1E293B; font-weight:900; letter-spacing:-0.5px; margin-bottom:8px;">DOMAIN-AGNOSTIC CAUSAL INTELLIGENCE</h4>'
 '<div style="color:#94A3B8;font-size:0.78rem;font-weight:600;margin-bottom:16px;">Controlled benchmark · n=500 synthetic cases per domain · Pre-domain-knowledge discovery</div>'
 '<p style="color:#334155; font-size:1rem; line-height:1.6; max-width:800px; margin:0 auto 20px auto;">'
 'CausalOCPM successfully recovered confounding structures and true causal effects across Manufacturing and Healthcare without requiring domain-specific modifications.</p>'
 '<div style="display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">'
-'<div style="background:#F0FDF4; color:#15803D; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Generalises Across Industries</div>'
-'<div style="background:#F0FDF4; color:#15803D; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Preserves Causal Validity</div>'
-'<div style="background:#F0FDF4; color:#15803D; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Requires No Custom Redesign</div>'
+'<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Generalises Across Industries</div>'
+'<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Preserves Causal Validity</div>'
+'<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Requires No Custom Redesign</div>'
 '</div>'
 '</div>'
 '</div>'

@@ -1,5 +1,22 @@
 import datetime as _dt
 
+# ── ABOUT THIS REPORT (PHASE 0) ───────────────────────────────────────────
+# Static framing text, not a personalized AI output — labeled accordingly so
+# it doesn't imply an insight it isn't.
+st.markdown(f"""
+<div style="background: linear-gradient(to right, #F8FAFC, #FFFFFF); border: 1px solid #E2E8F0; border-left: 4px solid #0284C7; border-radius: 12px; padding: 24px 32px; margin-bottom: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+    <div style="font-size: 0.85rem; font-weight: 800; color: #0284C7; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.2rem;">ℹ️</span> About This Report
+    </div>
+    <ul style="color: #334155; font-size: 1rem; line-height: 1.7; margin: 0; padding-left: 20px;">
+        <li>This final report synthesizes the causal findings into actionable business decisions.</li>
+        <li>The prioritized action plan is directly derived from the Double ML validated causal coefficients and ROI projections.</li>
+        <li>Implementation timelines and Capex estimates are aligned with the projected operational improvements.</li>
+        <li>This report is ready for executive review.</li>
+    </ul>
+</div>
+""", unsafe_allow_html=True)
+
 with st.expander("📊 Cross-domain validation benchmark (optional)", expanded=False):
     st.markdown(_domain_validation_note_html, unsafe_allow_html=True)
     st.caption("Full n=500 Manufacturing-vs-Healthcare benchmark condensed here to keep the main report focused.")
@@ -100,9 +117,10 @@ st.markdown(
     f'<h3 style="color:#064E3B;font-size:1.1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 16px;">01 · KEY FINDINGS</h3>'
     f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">'
     f'<div>'
-    f'<div style="color:#6B7280;font-size:0.72rem;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Ground Truth Effect (Planted)</div>'
-    f'<div style="color:#059669;font-size:2rem;font-weight:900;">{_r_causal:.2f}<span style="font-size:1rem;"> days</span></div>'
-    f'<div style="color:#6B7280;font-size:0.8rem;">Planted SCM coefficient · DML validates recovery</div>'
+    f'<div style="color:#6B7280;font-size:0.72rem;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Ground Truth Effect '
+    f'<span style="background:#F1F5F9;color:#64748B;border-radius:4px;padding:1px 6px;font-size:0.65rem;letter-spacing:0.02em;margin-left:2px;">SYNTHETIC CONSTANT</span></div>'
+    f'<div style="color:#059669;font-size:2rem;font-weight:900;opacity:0.85;">{_r_causal:.2f}<span style="font-size:1rem;"> days</span></div>'
+    f'<div style="color:#6B7280;font-size:0.8rem;">Planted SCM coefficient, not a live estimate · DML validates recovery below</div>'
     f'</div>'
     f'<div>'
     f'<div style="color:#6B7280;font-size:0.72rem;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Confounding Bias Removed</div>'
@@ -120,13 +138,17 @@ st.markdown(
 )
 
 # SECTION 2 — CAUSAL CHAIN
+_r_driver_hops = _r_driver.split(" → ")
+_r_hop_colors  = ["#DC2626", "#D97706", "#1D4ED8"]
+_r_chain_html  = " → ".join(
+    f'<b style="color:{_r_hop_colors[i % len(_r_hop_colors)]};">{hop}</b>'
+    for i, hop in enumerate(_r_driver_hops)
+)
 st.markdown(
     f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:24px 28px;margin-bottom:24px;">'
     f'<h3 style="color:#1E293B;font-size:1.1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 12px;">02 · PRIMARY CAUSAL CHAIN</h3>'
     f'<div style="font-family:monospace;font-size:0.95rem;color:#334155;background:#F8FAFC;border-radius:6px;padding:16px 20px;line-height:2;">'
-    f'<b style="color:#DC2626;">{_r_driver.split(" → ")[0]}</b>'
-    f' → <b style="color:#D97706;">{_r_driver.split(" → ")[1]}</b>'
-    f' → <b style="color:#1D4ED8;">{_r_driver.split(" → ")[2]}</b>'
+    + _r_chain_html +
     f'</div>'
     f'<p style="color:#64748B;font-size:0.9rem;margin-top:12px;margin-bottom:0;">'
     f'Confounding path closes through {"supplier/order complexity" if domain == "manufacturing" else "patient complexity"} — traditional analytics cannot detect this. '
@@ -139,8 +161,7 @@ st.markdown(
 )
 
 # SECTION 3 — ACTION PLAN
-_sign_ok  = int((coefs["status"] != "Sign Error").sum()) if not coefs.empty and "status" in coefs.columns else 0
-_sign_tot = len(coefs) if not coefs.empty else 0
+_sign_ok, _sign_tot, _sign_pct = _compute_sign_consistency(coefs)
 _conf_badge = f"{_sign_ok}/{_sign_tot} sign-correct" if _sign_tot > 0 else "N/A"
 
 # Row 2 & 3 savings computed from same formula as row 1 (300×$960 mfg / 400×$1050 hc)
@@ -162,6 +183,7 @@ _tbl += '</table>'
 st.markdown(
     f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:24px 28px;margin-bottom:24px;">'
     f'<h3 style="color:#1E293B;font-size:1.1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 16px;">03 · RECOMMENDED ACTION PLAN</h3>'
+    f'<p style="color:#64748B;font-size:0.9rem;margin:0 0 16px;">Ranked by expected impact — each action ties back to a specific edge in the causal chain above.</p>'
     + _tbl +
     f'<div style="display:flex;gap:24px;margin-top:16px;">'
     f'<div style="color:#475569;font-size:0.85rem;"><b>Total Capex:</b> {_r_capex}</div>'
@@ -179,7 +201,7 @@ st.markdown(
 
 # SECTION 4 — METHODOLOGY & CONFIDENCE
 st.markdown(
-    f'<div style="background:#FAFAFA;border:1px solid #E2E8F0;border-radius:8px;padding:24px 28px;margin-bottom:24px;">'
+    f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:8px;padding:24px 28px;margin-bottom:24px;">'
     f'<h3 style="color:#1E293B;font-size:1.1rem;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 16px;">04 · METHODOLOGY & CONFIDENCE</h3>'
     f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
     f'<div>'

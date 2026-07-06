@@ -44,6 +44,21 @@ FOLLOW_UP_POOL = {
 }
 
 
+def compute_sign_consistency(coefs: Optional[pd.DataFrame]) -> tuple[int, int, float]:
+    """
+    Return (sign_ok_count, total_count, sign_ok_pct) — how many structural
+    coefficients have the theoretically-expected sign, out of all recovered
+    edges. Shared by the Copilot backend and the Decision Intelligence report
+    so both surfaces report the identical number from one implementation.
+    """
+    if coefs is None or coefs.empty or "status" not in coefs.columns:
+        return 0, 0, 100.0
+    total = len(coefs)
+    sign_ok = int((coefs["status"] != "Sign Error").sum())
+    pct = round(100.0 * sign_ok / total, 1) if total else 100.0
+    return sign_ok, total, pct
+
+
 # ── Context builder ───────────────────────────────────────────────────────────
 
 def build_context(
@@ -212,20 +227,58 @@ Do NOT fabricate numbers outside this context.
 # ── Cerebras API call ─────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-You are a Causal Process Intelligence Analyst embedded in CausalOCPM —
-a decision intelligence platform that combines Object-Centric Process Mining
-with Structural Causal Models and Double Machine Learning.
+You are an Enterprise Process Intelligence AI embedded in CausalOCPM, a causal
+process-mining platform. You ONLY discuss this project: the causal graph,
+structural equations, causal-effect estimates, and what-if simulation results
+supplied in CONTEXT below. You are not a general-purpose assistant.
 
-Your role: answer operational questions with the precision of a Celonis consultant
-and the rigour of a causal inference researcher.
+PROJECT BACKGROUND:
+- Pipeline: OCEL 2.0 logs -> pm4py -> Bootstrapped PC Algorithm -> Mixed SCM -> Double ML.
+- Robustness: Validated across 10 random seeds, includes CATE and E-values.
+- Tech Stack: Streamlit, Scikit-Learn, DoWhy, Causal-Learn, pm4py.
 
-Rules:
-1. Ground EVERY claim in the provided pipeline context. Never fabricate numbers.
-2. Always cite the causal path (X → Y → Z) when explaining delays or bottlenecks.
-3. Give concrete, quantified recommendations — never vague advice.
-4. Use plain language. Executives should understand without a statistics background.
-5. End every answer with a "Confidence:" line (High / Moderate / Low) and a brief
-   reason (e.g., "High — ground truth recovery error < 0.3%").
+CRITICAL RULES — read the QUESTION carefully before answering:
+1. Answer the SPECIFIC question asked. Do not default to a generic project
+   summary — pull whichever CONTEXT section(s) actually answer THIS question
+   (a bottleneck question → the causal graph + coefficients; a what-if or
+   simulation question → the WHAT-IF SIMULATION RESULTS section and its own
+   numbers, not the causal-effect section; an ROI question → the annual
+   saving / payback figures; a causal-chain question → the edge path).
+   Two different questions about this project must produce two genuinely
+   different answers, even when they touch overlapping context — lead with
+   what's DISTINCT to this question, not the one number that appears in
+   every section.
+2. Stay strictly within this project's scope. If a question is unrelated to
+   this causal process-mining analysis (small talk, general knowledge,
+   anything outside the CONTEXT), give one brief line acknowledging that and
+   redirect to what you can actually help with here — do not attempt a
+   generic answer to an off-topic question.
+3. Ground every operational claim in the provided CONTEXT. Never fabricate
+   numbers that aren't in it.
+4. Use professional, minimal language. No fluff.
+5. Format your response using EXACTLY these headings, but keep the CONTENT
+   under each one specific to the question asked — not a repeated summary:
+
+### Executive Summary
+(1-2 sentences that directly answer THIS question)
+
+### Key Findings
+- (2-3 bullets specific to this question, not a general recap)
+
+### Business Impact
+(Concrete ROI, delays saved, or risk — only what's relevant to this question)
+
+### Technical Reasoning
+(Which part of the pipeline — DAG, SCM, DML, or simulator — grounds this specific answer)
+
+### Evidence Used
+- (Only the context section(s) actually used for this answer)
+
+### Confidence
+High / Moderate / Low
+
+### Recommended Actions
+- (1-2 actions specific to this question, not generic advice)
 """
 
 def call_cerebras(
@@ -234,11 +287,28 @@ def call_cerebras(
     api_key: str,
     model: str = "gemma-4-31b",
     domain: str = "manufacturing",
-) -> tuple[str, str, list[str]]:
+    stream: bool = False,
+    chip_key: Optional[str] = None,
+):
     """
-    Call Cerebras (OpenAI-compatible API). Returns (answer, confidence_level, follow_up_questions).
-    Falls back to pre-computed answers if API fails.
+    Call Cerebras. If stream=True, returns a generator of chunks.
+    Otherwise returns (answer, confidence_level, follow_up_questions, used_fallback).
+
+    used_fallback is True whenever the live API call did not succeed and a
+    pre-computed canned answer was substituted instead — callers should use
+    this (not just "is a key configured") to decide whether to display a
+    "connected" status, since a bad/expired key or model error still returns
+    a normal-looking answer via the fallback path.
+
+    chip_key: pass the known intent key explicitly when the question came from
+    a UI suggestion chip (avoids relying on fuzzy substring-matching the
+    chip's display copy, which silently breaks if that copy is ever edited).
+    Free-typed chat questions should leave this as None to fall back to
+    keyword detection.
     """
+    chip_key = chip_key or _detect_chip_key(question)
+    follow_ups = FOLLOW_UP_POOL.get(chip_key, FOLLOW_UP_POOL["custom"])
+
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url="https://api.cerebras.ai/v1",
@@ -247,34 +317,50 @@ def call_cerebras(
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"},
         ]
-        resp = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.3,
-            max_tokens=600,
-            timeout=8.0,
-        )
-        raw = resp.choices[0].message.content.strip()
 
-        # Extract confidence line if present
-        confidence = "High"
-        lines = raw.split("\n")
-        answer_lines = []
-        for ln in lines:
-            if ln.strip().startswith("Confidence:"):
-                parts = ln.split(":", 1)
-                confidence = parts[1].strip().split("—")[0].strip() if len(parts) > 1 else "High"
-            else:
+        if stream:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.45,
+                max_tokens=800,
+                stream=True
+            )
+            def generate():
+                for chunk in resp:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+            return generate(), "High", follow_ups, False
+
+        else:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.45,
+                max_tokens=800,
+                timeout=8.0,
+            )
+            raw = resp.choices[0].message.content.strip()
+
+            # Extract confidence line if present for legacy non-streamed paths
+            confidence = "High"
+            lines = raw.split("\n")
+            answer_lines = []
+            for ln in lines:
+                if ln.strip().startswith("### Confidence"):
+                    pass # We just skip it if we want, or keep it. Let's keep it in the raw text.
                 answer_lines.append(ln)
-        answer = "\n".join(answer_lines).strip()
+            answer = "\n".join(answer_lines).strip()
 
-        chip_key = _detect_chip_key(question)
-        follow_ups = FOLLOW_UP_POOL.get(chip_key, FOLLOW_UP_POOL["custom"])
-        return answer, confidence, follow_ups
+            return answer, confidence, follow_ups, False
 
     except Exception as _e:
-        logger.exception("Cerebras call failed for question=%r; using canned fallback answer", question)
-        return _fallback(question, context, domain)
+        logger.exception("Cerebras call failed for question=%r", question)
+        if stream:
+            def generate_fallback():
+                yield _fallback(question, context, domain, chip_key=chip_key)[0]
+            return generate_fallback(), "High", follow_ups, True
+        return _fallback(question, context, domain, chip_key=chip_key) + (True,)
 
 
 def _detect_chip_key(question: str) -> str:
@@ -292,9 +378,9 @@ def _detect_chip_key(question: str) -> str:
 
 # ── Fallback answers ──────────────────────────────────────────────────────────
 
-def _fallback(question: str, context: str, domain: str) -> tuple[str, str, list[str]]:
+def _fallback(question: str, context: str, domain: str, chip_key: Optional[str] = None) -> tuple[str, str, list[str]]:
     """Return a pre-computed high-quality answer when Cerebras is unavailable."""
-    key = _detect_chip_key(question)
+    key = chip_key or _detect_chip_key(question)
     answers = _get_fallback_answers(domain)
     answer = answers.get(key, answers["custom"])
     follow_ups = FOLLOW_UP_POOL.get(key, FOLLOW_UP_POOL["custom"])
@@ -621,10 +707,7 @@ def build_response_data(
                 {"label": "Length of Stay",      "role": "Outcome",    "color": "#1D4ED8", "bg": "#EFF6FF", "border": "#93C5FD"},
             ]
 
-    sign_pct = 100.0
-    if coefs is not None and not coefs.empty and "status" in coefs.columns and len(coefs) > 0:
-        sign_ok  = int((coefs["status"] != "Sign Error").sum())
-        sign_pct = round(100.0 * sign_ok / len(coefs), 1)
+    _sign_ok, _sign_total, sign_pct = compute_sign_consistency(coefs)
 
     evidence = [
         f"{n_events:,} events analysed across {n_obj_types} object types",
