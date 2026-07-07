@@ -16,217 +16,6 @@ st.markdown(f"""
 if is_custom:
     accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))
 
-# SECTION 1: Structural Equation Summary
-t3_col_eq = st.container()
-
-with t3_col_eq:
-    st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Structural Equation Summary</h4>", unsafe_allow_html=True)
-    
-    cards_html = f'<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px;">'
-    for node, eq in scm.items():
-        mt = eq["model_type"]
-        mt_display = mt.replace("_", " ").title()
-        val = eq['r2_score']
-        metric = eq['metric_label']
-        
-        if mt == "logistic":
-            status = "Reliable Classification"
-        elif mt == "gradient_boosting":
-            status = "High Confidence"
-        else:
-            status = "Linear Fit"
-        # Color reflects the fit quality itself (same thresholds used for
-        # Model Confidence elsewhere in this tab), not just which model ran.
-        if val >= 0.9:
-            color = "#059669"
-        elif val >= 0.7:
-            color = "#D97706"
-        else:
-            color = "#DC2626"
-        status = f"{'✓' if val >= 0.7 else '⚠'} {status}"
-            
-        node_clean = node.replace("_", " ").title()
-        
-        cards_html += (
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid {color}; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:#1E293B; font-size:1.1rem; font-weight:700; margin-bottom:8px;">{node_clean}</div>'
-            f'<div style="color:#64748B; font-size:0.9rem; margin-bottom:12px;">{mt_display}</div>'
-            f'<div style="display:flex; justify-content:space-between; align-items:center;">'
-            f'<div style="font-size:1rem; font-weight:600; color:#334155;">{metric} = {val:.3f}</div>'
-            f'<div style="font-size:0.8rem; font-weight:600; color:{color};">{status}</div>'
-            f'</div>'
-            f'</div>'
-        )
-    cards_html += '</div>'
-    st.markdown(cards_html, unsafe_allow_html=True)
-
-# Calculate validation metrics
-if not coefs.empty:
-    total_edges = len(coefs)
-    # Sign Error or no comparison
-    recovered_edges = len(coefs[coefs['status'] != 'Sign Error'])
-    # Domains without a planted numeric ground truth (e.g. healthcare — see
-    # _MFG_GROUND_TRUTH in phase3_scm.py) have pct_error/abs_error all-NaN by
-    # design (structural demonstration only, not numerical validation). Show
-    # that honestly instead of ".mean()" silently producing "nan%".
-    _raw_mean_error = coefs['pct_error'].mean() if 'pct_error' in coefs else 0.0
-    mean_error_str = f"{_raw_mean_error:.1%}" if pd.notna(_raw_mean_error) else "N/A"
-    sign_consistency = (recovered_edges / total_edges) * 100 if total_edges > 0 else 100.0
-
-    if 'abs_error' in coefs and not coefs['abs_error'].isna().all():
-        best_idx = coefs['abs_error'].idxmin()
-        best_edge_row = coefs.loc[best_idx]
-        strongest_recovery = f"{best_edge_row['parent']} → {best_edge_row['child']}"
-        strongest_err_str = f"{best_edge_row['pct_error']:.1%} Error"
-    else:
-        strongest_recovery = "N/A"
-        strongest_err_str = "No numeric ground truth for this domain"
-        
-    # SECTION 2: Model Validation Summary
-    st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Model Validation Summary</h4>", unsafe_allow_html=True)
-    
-    val_html = (
-        f'<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">'
-        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Relationships Recovered</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:{SUCCESS}; margin-top:4px;">{recovered_edges} / {total_edges}</div>'
-        f'<div style="font-size:0.8rem; font-weight:600; color:{SUCCESS}; margin-top:2px;">{sign_consistency:.0f}% sign-consistent</div>'
-        f'</div>'
-        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Mean Relative Error</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:{SUCCESS}; margin-top:4px;">{mean_error_str}</div>'
-        f'</div>'
-        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
-        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Strongest Recovery</div>'
-        f'<div style="font-size:1rem; font-weight:700; color:{SUCCESS}; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{strongest_recovery}">{strongest_recovery}</div>'
-        f'<div style="font-size:0.8rem; font-weight:600; color:{SUCCESS}; margin-top:2px;">{strongest_err_str}</div>'
-        f'</div>'
-        f'</div>'
-    )
-    st.markdown(val_html, unsafe_allow_html=True)
-    
-# ── SECTION 2.5: Treatment Effect Heterogeneity (CATE) ──────────────────────
-if not is_custom:
-    _mod_var   = cfg.get("moderator_var", "")
-    _mod_label = cfg.get("moderator_label", "Complexity")
-    _treat_lbl = cfg["treatment_var"].replace("_", " ").title()
-    _out_lbl   = cfg["outcome_label"]
-
-    if _mod_var and _mod_var in df.columns:
-        with st.spinner("Computing treatment effect heterogeneity…"):
-            # Cached on (domain, n, seed) — this is ~30 Double-ML-with-GBM
-            # fits (~13s); previously recomputed on every rerun (including
-            # tab switches) since it was called uncached, directly.
-            _cate_data = _compute_cate(domain, n_int, seed_int)
-
-        if _cate_data:
-            st.markdown(
-                "<h4 style='color:#1E293B; margin-bottom:4px; margin-top:32px;'>"
-                "Treatment Effect Heterogeneity</h4>"
-                f"<p style='color:#64748B; font-size:0.88rem; margin-bottom:16px;'>"
-                f"Does the causal effect of <b>{_treat_lbl}</b> on <b>{_out_lbl}</b> "
-                f"differ across <b>{_mod_label}</b> segments? "
-                f"Each bar is a Double ML estimate within that subgroup. "
-                f"Error bars show 95% CI.</p>",
-                unsafe_allow_html=True,
-            )
-
-            _cate_labels   = [r["label"]    for r in _cate_data]
-            _cate_ests     = [r["estimate"] for r in _cate_data]
-            _cate_ci_lo    = [r["ci_low"]   for r in _cate_data]
-            _cate_ci_hi    = [r["ci_high"]  for r in _cate_data]
-            _cate_ns       = [r["n"]        for r in _cate_data]
-            _cate_err_lo   = [e - l for e, l in zip(_cate_ests, _cate_ci_lo)]
-            _cate_err_hi   = [h - e for e, h in zip(_cate_ests, _cate_ci_hi)]
-
-            # Segment colours: Low=blue, Mid=amber, High=red
-            _seg_colors = ["#3B82F6", "#F59E0B", "#EF4444"][:len(_cate_data)]
-
-            _fig_cate = go.Figure()
-            _fig_cate.add_trace(go.Bar(
-                x=_cate_labels,
-                y=_cate_ests,
-                error_y=dict(
-                    type="data",
-                    symmetric=False,
-                    array=_cate_err_hi,
-                    arrayminus=_cate_err_lo,
-                    color="#94A3B8",
-                    thickness=2,
-                    width=6,
-                ),
-                marker_color=_seg_colors,
-                marker_line=dict(color="white", width=1.5),
-                opacity=0.88,
-                text=[f"{e:+.2f}" for e in _cate_ests],
-                textposition="outside",
-                textfont=dict(size=13, color="#1E293B"),
-                customdata=_cate_ns,
-                hovertemplate=(
-                    "<b>%{x}</b><br>"
-                    "CATE: %{y:+.3f} days<br>"
-                    "95% CI: [%{error_y.arrayminus:.3f} – %{error_y.array:.3f}]<br>"
-                    "n = %{customdata}<extra></extra>"
-                ),
-                name="CATE",
-                showlegend=False,
-            ))
-
-            # Average treatment effect reference line
-            _avg_est = sum(_cate_ests) / len(_cate_ests)
-            _fig_cate.add_hline(
-                y=_avg_est,
-                line_dash="dot",
-                line_color="#6366F1",
-                line_width=1.5,
-                annotation_text=f"  ATE ≈ {_avg_est:+.2f} (binary full-switch vs no treatment)",
-                annotation_font=dict(color="#6366F1", size=11),
-                annotation_position="right",
-            )
-
-            _cate_layout = dict(**PLOTLY_LAYOUT)
-            _cate_layout.update(dict(
-                height=340,
-                margin=dict(l=20, r=80, t=30, b=60),
-                yaxis={**PLOTLY_LAYOUT.get("yaxis", {}),
-                       "title": f"Causal Effect on {_out_lbl}",
-                       "title_font": dict(size=12),
-                       "zeroline": True,
-                       "zerolinecolor": "#E2E8F0",
-                       "zerolinewidth": 1.5},
-                xaxis={**PLOTLY_LAYOUT.get("xaxis", {}),
-                       "title": _mod_label,
-                       "title_font": dict(size=12)},
-            ))
-            _fig_cate.update_layout(**_cate_layout)
-            st.plotly_chart(_fig_cate, use_container_width=True, theme=None,
-                            config={"displayModeBar": False})
-
-            # Insight card
-            _max_cate = max(_cate_data, key=lambda r: r["estimate"])
-            _min_cate = min(_cate_data, key=lambda r: r["estimate"])
-            _spread   = _max_cate["estimate"] - _min_cate["estimate"]
-            _spread_pct = (_spread / abs(_min_cate["estimate"]) * 100
-                           if abs(_min_cate["estimate"]) > 0.01 else 0)
-            st.markdown(
-                f'<div style="background:#F8FAFC; border:1px solid #E2E8F0; '
-                f'border-left:4px solid #6366F1; border-radius:8px; '
-                f'padding:14px 18px; margin-top:4px; margin-bottom:8px;">'
-                f'<div style="color:#6366F1; font-size:0.72rem; font-weight:800; '
-                f'text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Conditional Average Treatment Effect (CATE)</div>'
-                f'<div style="color:#1E293B; font-size:0.95rem; line-height:1.6;">'
-                f'The causal effect of <b>{_treat_lbl}</b> is strongest in the '
-                f'<b>{_max_cate["label"].split(" (")[0]}</b> complexity segment '
-                f'(<b>{_max_cate["estimate"]:+.2f} days</b>), '
-                f'{_spread_pct:.0f}% larger than the '
-                f'{_min_cate["label"].split(" (")[0]} segment '
-                f'({_min_cate["estimate"]:+.2f} days). '
-                f'This heterogeneity suggests <b>targeted interventions</b> '
-                f'would yield different returns by {_mod_label.lower()} profile.'
-                f'</div></div>',
-                unsafe_allow_html=True,
-            )
-
 # ── SECTION 3: What-If Causal Simulator ────────────────────────────────────
 
 # Session state initialisation
@@ -417,33 +206,39 @@ _sim_f1      = dag_metrics.get("f1_score", 0.0) if "dag_metrics" in dir() else 0
 _conf_lbl    = "HIGH" if _sim_f1 >= 0.9 else ("MODERATE" if _sim_f1 >= 0.7 else "LOW")
 _conf_col    = "#059669" if _sim_f1 >= 0.9 else ("#D97706" if _sim_f1 >= 0.7 else "#DC2626")
 
+def _sim_stat_card(icon_bg, icon, label, value, value_color="#0F172A"):
+    return (
+        f'<div style="display:flex;align-items:center;gap:10px;background:#F8FAFC;'
+        f'border:1px solid #E2E8F0;border-radius:12px;padding:10px 14px;min-width:150px;">'
+        f'<div style="width:34px;height:34px;border-radius:9px;background:{icon_bg};flex-shrink:0;'
+        f'display:flex;align-items:center;justify-content:center;font-size:0.95rem;">{icon}</div>'
+        f'<div><div style="font-size:0.62rem;color:#94A3B8;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.04em;">{label}</div>'
+        f'<div style="font-size:0.85rem;font-weight:700;color:{value_color};">{value}</div></div>'
+        f'</div>'
+    )
+
 st.markdown(
-    f'<div style="background:linear-gradient(135deg,#F0FDF4 0%,#ECFDF5 100%);'
-    f'border:1px solid #BBF7D0;border-radius:14px;padding:18px 24px;margin-bottom:20px;'
-    f'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">'
+    f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;'
+    f'padding:20px 24px;margin-bottom:20px;'
+    f'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;'
+    f'box-shadow:0 2px 10px rgba(15,23,42,0.03);">'
+    f'<div style="display:flex;align-items:center;gap:16px;">'
+    f'<div style="width:48px;height:48px;border-radius:14px;background:#EDE9FE;flex-shrink:0;'
+    f'display:flex;align-items:center;justify-content:center;font-size:1.3rem;">⚡</div>'
     f'<div>'
     f'<div style="font-size:1.25rem;font-weight:800;color:#1E293B;margin-bottom:3px;">'
-    f'⚡ What-If Causal Simulator</div>'
+    f'What-If Causal Simulator</div>'
     f'<div style="font-size:0.85rem;color:#64748B;">Adjust levers to see real-time outcome '
     f'predictions from the discovered causal model.</div>'
     f'</div>'
-    f'<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">'
-    f'<div style="text-align:center;">'
-    f'<div style="font-size:0.68rem;color:#64748B;font-weight:700;text-transform:uppercase;">Domain</div>'
-    f'<div style="font-size:0.82rem;font-weight:700;color:#1E293B;">{_sim_domain_lbl}</div>'
     f'</div>'
-    f'<div style="text-align:center;">'
-    f'<div style="font-size:0.68rem;color:#64748B;font-weight:700;text-transform:uppercase;">'
-    f'Baseline {_sim_out_lbl}</div>'
-    f'<div style="font-size:0.82rem;font-weight:700;color:#1E293B;">{_sim_bl:.2f} days</div>'
-    f'</div>'
-    f'<div style="text-align:center;">'
-    f'<div style="font-size:0.68rem;color:#64748B;font-weight:700;text-transform:uppercase;">'
-    f'Model Confidence</div>'
-    f'<div style="font-size:0.82rem;font-weight:700;color:{_conf_col};">'
-    f'{_conf_lbl} CONFIDENCE</div>'
-    f'</div>'
-    f'<div style="display:flex;align-items:center;gap:5px;">'
+    f'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+    + _sim_stat_card("#DBEAFE", "📁", "Domain", _sim_domain_lbl)
+    + _sim_stat_card("#EDE9FE", "📅", f"Baseline {_sim_out_lbl}", f"{_sim_bl:.2f} days")
+    + _sim_stat_card("#D1FAE5", "🛡️", "Model Confidence", f"{_conf_lbl} Confidence", _conf_col)
+    + f'<div style="display:flex;align-items:center;gap:6px;background:#ECFDF5;border:1px solid #A7F3D0;'
+    f'border-radius:20px;padding:8px 16px;">'
     f'<span style="width:8px;height:8px;background:#10B981;border-radius:50%;'
     f'box-shadow:0 0 0 3px rgba(16,185,129,0.22);display:inline-block;"></span>'
     f'<span style="font-size:0.78rem;font-weight:600;color:#059669;">Live Engine Active</span>'
@@ -453,15 +248,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+def _sim_section_header(icon_bg, icon, title):
+    st.markdown(
+        f'<div style="display:flex;align-items:center;gap:9px;margin-bottom:10px;">'
+        f'<div style="width:26px;height:26px;border-radius:7px;background:{icon_bg};'
+        f'display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0;">{icon}</div>'
+        f'<span style="color:#1E293B;font-size:0.95rem;font-weight:700;">{title}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
 # ── Two-column layout ──────────────────────────────────────────────────────
 _lcol, _rcol = st.columns([1.1, 1.9])
 
 with _lcol:
-    st.markdown(
-        "<h5 style='color:#1E293B;margin-bottom:6px;font-size:0.95rem;'>"
-        "🎛️ Intervention Levers</h5>",
-        unsafe_allow_html=True,
-    )
+    _sim_section_header("#EDE9FE", "🎛️", "Intervention Levers")
 
     if st.button("🔄 Reset to Baseline", use_container_width=True, key="sim_reset_btn"):
         st.session_state[_sim_key] = dict(_MFG_DEFAULTS if _is_mfg_sim else _HC_DEFAULTS)
@@ -589,11 +390,7 @@ with _lcol:
 _res = _compute_mfg(_lv) if _is_mfg_sim else _compute_hc(_lv)
 
 with _rcol:
-    st.markdown(
-        "<h5 style='color:#1E293B;margin-bottom:6px;font-size:0.95rem;'>"
-        "📊 Predicted Outcomes</h5>",
-        unsafe_allow_html=True,
-    )
+    _sim_section_header("#DBEAFE", "📊", "Predicted Outcomes")
 
     # ── Hero KPI + impact badge ───────────────────────────────────────────
     _imp  = _res["improvement_pct"]
@@ -609,53 +406,58 @@ with _rcol:
     else:
         _badge_col, _badge_lbl = "#DC2626", "NO IMPROVEMENT"
 
-    _hc1, _hc2 = st.columns([2, 1])
-    with _hc1:
-        st.metric(
-            label=f"Predicted {_sim_out_lbl}",
-            value=f"{_pred:.1f} days",
-            delta=f"{-_imp:.1f}% vs baseline",
-            delta_color="inverse",
-        )
-        st.markdown(
-            f'<div style="font-size:0.75rem;color:{MUTED};font-style:italic;margin-top:-6px;">'
-            f'Scenario range (±12%): [{_res["ci_low"]:.1f} – {_res["ci_high"]:.1f} days]</div>',
-            unsafe_allow_html=True,
-        )
-    with _hc2:
-        st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
-        st.markdown(
-            f'<div style="background:{_badge_col};color:#fff;border-radius:8px;'
-            f'padding:7px 10px;font-size:0.72rem;font-weight:700;text-align:center;">'
-            f'{_badge_lbl}</div>',
-            unsafe_allow_html=True,
-        )
+    with st.container(border=True):
+        _hc1, _hc2 = st.columns([2, 1])
+        with _hc1:
+            st.metric(
+                label=f"Predicted {_sim_out_lbl}",
+                value=f"{_pred:.1f} days",
+                delta=f"{-_imp:.1f}% vs baseline",
+                delta_color="inverse",
+            )
+            st.markdown(
+                f'<div style="font-size:0.75rem;color:{MUTED};font-style:italic;margin-top:-6px;">'
+                f'Scenario range (±12%): [{_res["ci_low"]:.1f} – {_res["ci_high"]:.1f} days]</div>',
+                unsafe_allow_html=True,
+            )
+        with _hc2:
+            st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="background:{_badge_col};color:#fff;border-radius:8px;'
+                f'padding:7px 10px;font-size:0.72rem;font-weight:700;text-align:center;">'
+                f'{_badge_lbl}</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
     # ── Secondary KPI row ─────────────────────────────────────────────────
     _k1, _k2, _k3 = st.columns(3)
     with _k1:
-        st.metric("Throughput", f"{_res['throughput']:.0f}/day",
-                  delta=f"+{_res['throughput'] - 100:.0f}")
+        with st.container(border=True):
+            st.metric("Throughput", f"{_res['throughput']:.0f}/day",
+                      delta=f"+{_res['throughput'] - 100:.0f}")
     with _k2:
-        st.metric("Risk Index", f"{_res['risk_index']:.1f} / 100",
-                  delta=f"{_res['risk_index'] - 45:.1f} vs baseline",
-                  delta_color="inverse",
-                  help="Composite risk score (0–100). Baseline = 45. Lower is better. Scales with predicted delay relative to baseline.")
+        with st.container(border=True):
+            st.metric("Risk Index", f"{_res['risk_index']:.1f} / 100",
+                      delta=f"{_res['risk_index'] - 45:.1f} vs baseline",
+                      delta_color="inverse",
+                      help="Composite risk score (0–100). Baseline = 45. Lower is better. Scales with predicted delay relative to baseline.")
     with _k3:
-        _roi     = _res["roi_months"]
-        _no_sav  = _res["annual_saving"] <= 0
-        _roi_str = "—" if _no_sav else (f"{_roi:.1f} mo" if _roi < 60 else ">5 yr")
-        st.metric("ROI Payback", _roi_str,
-                  delta="Adjust levers above" if _no_sav else f"${_res['annual_saving']:,.0f}/yr saved",
-                  delta_color="off" if _no_sav else "normal")
+        with st.container(border=True):
+            _roi     = _res["roi_months"]
+            _no_sav  = _res["annual_saving"] <= 0
+            _roi_str = "—" if _no_sav else (f"{_roi:.1f} mo" if _roi < 60 else ">5 yr")
+            st.metric("ROI Payback", _roi_str,
+                      delta="Adjust levers above" if _no_sav else f"${_res['annual_saving']:,.0f}/yr saved",
+                      delta_color="off" if _no_sav else "normal")
+
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
     # ── Causal Effect Decomposition (waterfall) ───────────────────────────
-    st.markdown(
-        "<div style='height:6px;'></div>"
-        "<div style='font-size:0.82rem;font-weight:700;color:#1E293B;margin-bottom:2px;'>"
-        "📡 Causal Effect Decomposition</div>",
-        unsafe_allow_html=True,
-    )
+    _sim_wf_container = st.container(border=True)
+    with _sim_wf_container:
+        _sim_section_header("#FEF3C7", "📡", "Causal Effect Decomposition")
     _wf_labels  = [f"Baseline ({_bl:.1f}d)"] + list(_res["deltas"].keys()) + ["Predicted"]
     _wf_values  = [_bl] + list(_res["deltas"].values()) + [_pred]
     _wf_measure = ["absolute"] + ["relative"] * len(_res["deltas"]) + ["total"]
@@ -685,256 +487,346 @@ with _rcol:
         showlegend=False,
     ))
     _fig_wf.update_layout(**_wfl)
-    st.plotly_chart(_fig_wf, use_container_width=True, theme=None,
-                    config={"displayModeBar": False})
+    with _sim_wf_container:
+        st.plotly_chart(_fig_wf, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
 
-    # ── Mediator state table ──────────────────────────────────────────────
-    st.markdown(
-        "<div style='font-size:0.82rem;font-weight:700;color:#1E293B;margin-bottom:5px;'>"
-        "🔗 Mediator Variable States</div>",
-        unsafe_allow_html=True,
-    )
-    _med_html = (
-        '<div style="overflow-x:auto;">'
-        '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">'
-        '<thead><tr>'
-        f'<th style="padding:7px 8px;text-align:left;border-bottom:2px solid {BORDER};'
-        f'color:{MUTED};font-weight:600;">Variable</th>'
-        f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
-        f'color:{MUTED};font-weight:600;">Baseline</th>'
-        f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
-        f'color:{MUTED};font-weight:600;">Predicted</th>'
-        f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
-        f'color:{MUTED};font-weight:600;">Change</th>'
-        '</tr></thead><tbody>'
-    )
-    for _var, (_bv, _cv, _unit) in _res["mediators"].items():
-        _delta = _cv - _bv
-        _dstr  = f"{_delta:+.2f} {_unit}"
-        _dcol  = (SUCCESS if _delta < -0.001 else (ERROR if _delta > 0.001 else MUTED))
-        _med_html += (
-            f'<tr style="border-bottom:1px solid {BORDER};">'
-            f'<td style="padding:6px 8px;color:{TEXT};font-weight:500;">{_var}</td>'
-            f'<td style="padding:6px 8px;text-align:right;color:{MUTED};">{_bv:.2f} {_unit}</td>'
-            f'<td style="padding:6px 8px;text-align:right;color:{TEXT};font-weight:600;">{_cv:.2f} {_unit}</td>'
-            f'<td style="padding:6px 8px;text-align:right;font-weight:700;color:{_dcol};">{_dstr}</td>'
-            f'</tr>'
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+
+# ── Mediator states + Business impact (full-width two-column row) ─────────
+_medcol, _biscol = st.columns([1, 1])
+with _medcol:
+    with st.container(border=True):
+        _sim_section_header("#DBEAFE", "🔗", "Mediator Variable States")
+        _med_html = (
+            '<div style="overflow-x:auto;">'
+            '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">'
+            '<thead><tr>'
+            f'<th style="padding:7px 8px;text-align:left;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Variable</th>'
+            f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Baseline</th>'
+            f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Predicted</th>'
+            f'<th style="padding:7px 8px;text-align:right;border-bottom:2px solid {BORDER};'
+            f'color:{MUTED};font-weight:600;">Change</th>'
+            '</tr></thead><tbody>'
         )
-    _med_html += "</tbody></table></div>"
-    st.markdown(_med_html, unsafe_allow_html=True)
+        for _var, (_bv, _cv, _unit) in _res["mediators"].items():
+            _delta = _cv - _bv
+            _dstr  = f"{_delta:+.2f} {_unit}"
+            _dcol  = (SUCCESS if _delta < -0.001 else (ERROR if _delta > 0.001 else MUTED))
+            _med_html += (
+                f'<tr style="border-bottom:1px solid {BORDER};">'
+                f'<td style="padding:6px 8px;color:{TEXT};font-weight:500;">{_var}</td>'
+                f'<td style="padding:6px 8px;text-align:right;color:{MUTED};">{_bv:.2f} {_unit}</td>'
+                f'<td style="padding:6px 8px;text-align:right;color:{TEXT};font-weight:600;">{_cv:.2f} {_unit}</td>'
+                f'<td style="padding:6px 8px;text-align:right;font-weight:700;color:{_dcol};">{_dstr}</td>'
+                f'</tr>'
+            )
+        _med_html += "</tbody></table></div>"
+        st.markdown(_med_html, unsafe_allow_html=True)
 
-    # ── ROI panel ─────────────────────────────────────────────────────────
-    if _res["impl_cost"] > 0:
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+with _biscol:
+    with st.container(border=True):
+        _sim_section_header("#DBEAFE", "💰", "Business Impact Estimate")
+        if _res["impl_cost"] > 0:
+            st.markdown(
+                f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">'
+                f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
+                f'text-transform:uppercase;">Impl. Cost</div>'
+                f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">'
+                f'${_res["impl_cost"]:,.0f}</div></div>'
+                f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
+                f'text-transform:uppercase;">Annual Savings</div>'
+                f'<div style="font-size:0.95rem;font-weight:700;color:{SUCCESS};">'
+                f'${_res["annual_saving"]:,.0f}/yr</div></div>'
+                f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
+                f'text-transform:uppercase;">Payback</div>'
+                f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">{_roi_str}</div></div>'
+                f'</div>'
+                f'<div style="font-size:0.68rem;color:{SUBTLE};margin-top:8px;font-style:italic;">'
+                + (f'*SEM-based estimate · $960/day/order · 300 orders/yr'
+                   if _is_mfg_sim else
+                   f'*SEM-based estimate · $1,050/day/case · 400 cases/yr')
+                + f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f'<div style="color:{MUTED};font-size:0.82rem;">'
+                f'No implementation cost at current lever settings.</div>',
+                unsafe_allow_html=True,
+            )
+
+# ── Scenario Comparison + Live Causal Graph (final two-column row) ────────
+st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+_botl, _botr = st.columns([1, 1])
+
+with _botl:
+    with st.container(border=True):
+        _sim_section_header("#FEF3C7", "📋", "Scenario Comparison")
+
+        _sc_in, _sc_sv = st.columns([3, 1])
+        with _sc_in:
+            _save_name = st.text_input(
+                "Scenario name", placeholder="e.g. Full Automation + Express",
+                key="sim_save_name_input", label_visibility="collapsed",
+            )
+        with _sc_sv:
+            if st.button("💾 Save Scenario", use_container_width=True, key="sim_save_btn"):
+                if _save_name and len(st.session_state["sim_scenarios"]) < 4:
+                    st.session_state["sim_scenarios"].append({
+                        "name":   _save_name,
+                        "levers": dict(_lv),
+                        "result": {k: v for k, v in _res.items()
+                                   if k not in ("mediators", "deltas")},
+                    })
+                    st.rerun()
+                elif len(st.session_state["sim_scenarios"]) >= 4:
+                    st.warning("Max 4 scenarios — clear some first.")
+
         st.markdown(
-            f'<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;'
-            f'padding:12px 16px;">'
-            f'<div style="font-size:0.8rem;font-weight:700;color:#1D4ED8;margin-bottom:7px;">'
-            f'💰 Business Impact Estimate</div>'
-            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">'
-            f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
-            f'text-transform:uppercase;">Impl. Cost</div>'
-            f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">'
-            f'${_res["impl_cost"]:,.0f}</div></div>'
-            f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
-            f'text-transform:uppercase;">Annual Savings</div>'
-            f'<div style="font-size:0.95rem;font-weight:700;color:{SUCCESS};">'
-            f'${_res["annual_saving"]:,.0f}/yr</div></div>'
-            f'<div><div style="font-size:0.68rem;color:{MUTED};font-weight:600;'
-            f'text-transform:uppercase;">Payback</div>'
-            f'<div style="font-size:0.95rem;font-weight:700;color:{TEXT};">{_roi_str}</div></div>'
-            f'</div>'
-            f'<div style="font-size:0.68rem;color:{SUBTLE};margin-top:5px;font-style:italic;">'
-            + (f'*SEM-based estimate · $960/day/order · 300 orders/yr'
-               if _is_mfg_sim else
-               f'*SEM-based estimate · $1,050/day/case · 400 cases/yr')
-            + f'</div>'
-            f'</div>',
+            f'<div style="font-size:0.75rem;color:{MUTED};margin-bottom:10px;">'
+            f'Save up to 4 named scenarios to compare them side-by-side.</div>',
             unsafe_allow_html=True,
         )
 
-# ── Scenario Comparison (full width) ──────────────────────────────────────
-st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-st.markdown(
-    "<h5 style='color:#1E293B;margin-bottom:10px;font-size:0.95rem;'>"
-    "📋 Scenario Comparison</h5>",
-    unsafe_allow_html=True,
-)
+        _scenarios = st.session_state["sim_scenarios"]
+        st.markdown(
+            f'<div style="font-size:0.68rem;color:{MUTED};font-weight:700;'
+            f'text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">'
+            f'Saved Scenarios ({len(_scenarios)}/4)</div>',
+            unsafe_allow_html=True,
+        )
 
-_sc_in, _sc_sv, _sc_cl = st.columns([3, 1, 1])
-with _sc_in:
-    _save_name = st.text_input(
-        "Scenario name", placeholder="e.g. Full Automation + Express",
-        key="sim_save_name_input", label_visibility="collapsed",
-    )
-with _sc_sv:
-    if st.button("💾 Save", use_container_width=True, key="sim_save_btn"):
-        if _save_name and len(st.session_state["sim_scenarios"]) < 4:
-            st.session_state["sim_scenarios"].append({
-                "name":   _save_name,
-                "levers": dict(_lv),
-                "result": {k: v for k, v in _res.items()
-                           if k not in ("mediators", "deltas")},
-            })
-            st.rerun()
-        elif len(st.session_state["sim_scenarios"]) >= 4:
-            st.warning("Max 4 scenarios — clear some first.")
-with _sc_cl:
-    if st.session_state["sim_scenarios"]:
-        if st.button("🗑️ Clear", use_container_width=True, key="sim_clear_btn"):
-            st.session_state["sim_scenarios"] = []
-            st.rerun()
+        # Baseline row is always shown as the reference point, styled the
+        # same as saved scenarios but tagged ACTIVE instead of an impact tier.
+        def _sim_impact_pill(pct):
+            if pct > 25:   return "#059669", "#ECFDF5", "HIGH IMPACT"
+            if pct > 10:   return "#D97706", "#FFFBEB", "MODERATE IMPACT"
+            if pct > 0:    return "#EA580C", "#FFF7ED", "LOW IMPACT"
+            return "#DC2626", "#FEF2F2", "NO IMPROVEMENT"
 
-_scenarios = st.session_state["sim_scenarios"]
-if _scenarios:
-    _sc_rows = []
-    for _s in _scenarios:
-        _r    = _s["result"]
-        _ri   = f"{_r['roi_months']:.1f} mo" if _r['roi_months'] < 60 else ">5 yr"
-        _sc_rows.append({
-            "Scenario":        _s["name"],
-            "Pred. Delay (d)": f"{_r['predicted']:.1f}",
-            "Improvement":     f"{_r['improvement_pct']:.1f}%",
-            "Throughput":      f"{_r['throughput']:.0f}/day",
-            "Risk Index":      f"{_r['risk_index']:.1f}",
-            "ROI Payback":     _ri,
-            "Impl. Cost":      f"${_r['impl_cost']:,.0f}",
-        })
-    st.dataframe(pd.DataFrame(_sc_rows), use_container_width=True, hide_index=True)
+        _row_html = (
+            f'<div style="display:flex;align-items:center;justify-content:space-between;'
+            f'padding:9px 4px;border-bottom:1px solid {BORDER};">'
+            f'<span style="font-size:0.82rem;color:{TEXT};font-weight:500;">Baseline (Current)</span>'
+            f'<div style="display:flex;align-items:center;gap:10px;">'
+            f'<span style="background:#EEF2FF;color:#4F46E5;font-size:0.65rem;font-weight:700;'
+            f'padding:3px 9px;border-radius:8px;">ACTIVE</span>'
+            f'<span style="font-size:0.85rem;font-weight:700;color:{TEXT};min-width:56px;text-align:right;">'
+            f'{_bl:.1f} days</span></div></div>'
+        )
+        for _s in _scenarios:
+            _r = _s["result"]
+            _pcol, _pbg, _plbl = _sim_impact_pill(_r["improvement_pct"])
+            _row_html += (
+                f'<div style="display:flex;align-items:center;justify-content:space-between;'
+                f'padding:9px 4px;border-bottom:1px solid {BORDER};">'
+                f'<span style="font-size:0.82rem;color:{TEXT};font-weight:500;">{_s["name"]}</span>'
+                f'<div style="display:flex;align-items:center;gap:10px;">'
+                f'<span style="background:{_pbg};color:{_pcol};font-size:0.65rem;font-weight:700;'
+                f'padding:3px 9px;border-radius:8px;">{_plbl}</span>'
+                f'<span style="font-size:0.85rem;font-weight:700;color:{TEXT};min-width:56px;text-align:right;">'
+                f'{_r["predicted"]:.1f} days</span></div></div>'
+            )
+        st.markdown(_row_html, unsafe_allow_html=True)
 
-    _sc_names  = ["Baseline"] + [s["name"] for s in _scenarios]
-    _sc_delays = [_bl]        + [s["result"]["predicted"] for s in _scenarios]
-    _sc_colors = [MUTED]      + [
-        (SUCCESS if s["result"]["improvement_pct"] > 10 else WARNING)
-        for s in _scenarios
-    ]
-    _fig_sc = go.Figure(go.Bar(
-        x=_sc_names, y=_sc_delays,
-        marker_color=_sc_colors,
-        text=[f"{v:.1f}d" for v in _sc_delays],
-        textposition="outside",
-    ))
-    _scl = dict(**PLOTLY_LAYOUT)
-    _scl.update(dict(
-        height=260, showlegend=False,
-        margin=dict(l=10, r=10, t=20, b=20),
-        yaxis={"title": f"{_sim_out_lbl} (days)", "gridcolor": BORDER},
-    ))
-    _fig_sc.update_layout(**_scl)
-    st.plotly_chart(_fig_sc, use_container_width=True, theme=None,
-                    config={"displayModeBar": False})
-else:
-    st.markdown(
-        f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:8px;'
-        f'padding:14px;text-align:center;color:{MUTED};font-size:0.82rem;">'
-        f'Save up to 4 named scenarios to compare them side-by-side.</div>',
-        unsafe_allow_html=True,
-    )
+        if st.session_state["sim_scenarios"]:
+            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+            if st.button("🗑️ Clear Saved Scenarios", use_container_width=True, key="sim_clear_btn"):
+                st.session_state["sim_scenarios"] = []
+                st.rerun()
 
-# ── Live Causal DAG ───────────────────────────────────────────────────────
-with st.expander("🔬 Live Causal Graph — Intervention Propagation",
-                 expanded=False):
-    if _is_mfg_sim:
-        _dag_nodes = [
-            {"id": "order_complexity",      "x": 0.0, "y": 3.0, "role": "Confounder"},
-            {"id": "supplier_a",            "x": 0.0, "y": 0.0, "role": "Treatment"},
-            {"id": "material_lead_time",    "x": 2.5, "y": 0.0, "role": "Mediator"},
-            {"id": "machine_queue",         "x": 2.5, "y": 3.0, "role": "Mediator"},
-            {"id": "approval_duration",     "x": 5.0, "y": 2.0, "role": "Mediator"},
-            {"id": "export_flag",           "x": 2.5, "y": 5.0, "role": "Confounder"},
-            {"id": "carrier_express",       "x": 5.0, "y": 0.0, "role": "Treatment"},
-            {"id": "shipment_delay",        "x": 7.5, "y": 2.0, "role": "Outcome"},
+        # Always render the comparison chart, even with just the Baseline
+        # bar when no scenarios are saved yet — a real, meaningful chart
+        # rather than nothing, so this card isn't left far shorter than its
+        # "Live Causal Graph" neighbor (Streamlit's row stretches both
+        # columns to the same height regardless, so an empty card here
+        # otherwise reads as a chunk of dead blank space, not a deliberate
+        # layout choice).
+        _sc_names  = ["Baseline"] + [s["name"] for s in _scenarios]
+        _sc_delays = [_bl]        + [s["result"]["predicted"] for s in _scenarios]
+        _sc_colors = [MUTED]      + [
+            (SUCCESS if s["result"]["improvement_pct"] > 10 else WARNING)
+            for s in _scenarios
         ]
-        _dag_edges = [
-            ("supplier_a",         "material_lead_time",
-             _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
-            ("order_complexity",   "machine_queue",  False),
-            ("machine_queue",      "approval_duration",
-             _lv["machine_capacity_expanded"] or _lv["additional_workforce"] > 0),
-            ("export_flag",        "approval_duration",  _lv["export_flag_reduction"]),
-            ("material_lead_time", "shipment_delay",
-             _lv["material_lead_time_mode"] != "Current" or
-             _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
-            ("approval_duration",  "shipment_delay",
-             _lv["approval_automation"] or _lv["export_flag_reduction"]),
-            ("carrier_express",    "shipment_delay",
-             _lv["carrier_express_pct"] != _MFG_DEFAULTS["carrier_express_pct"]),
-            ("order_complexity",   "shipment_delay",  False),
-        ]
-    else:
-        _dag_nodes = [
-            {"id": "patient_complexity",     "x": 0.0, "y": 1.0, "role": "Confounder"},
-            {"id": "specialist_requirement", "x": 0.0, "y": 3.0, "role": "Treatment"},
-            {"id": "bed_occupancy",          "x": 3.0, "y": 2.0, "role": "Mediator"},
-            {"id": "triage_score",           "x": 1.5, "y": 0.0, "role": "Mediator"},
-            {"id": "treatment_duration",     "x": 6.0, "y": 2.0, "role": "Outcome"},
-        ]
-        _dag_edges = [
-            ("patient_complexity",     "treatment_duration",    False),
-            ("specialist_requirement", "treatment_duration",
-             _lv["specialist_allocation_pct"] != _HC_DEFAULTS["specialist_allocation_pct"]),
-            ("bed_occupancy",          "treatment_duration",    _lv["bed_capacity_expanded"]),
-            ("triage_score",           "specialist_requirement", _lv["triage_automation"]),
-        ]
-
-    _role_colors = {
-        "Confounder": WARNING, "Treatment": PRIMARY, "Mediator": INFO, "Outcome": ERROR,
-    }
-    _nxs = {n["id"]: n["x"] for n in _dag_nodes}
-    _nys = {n["id"]: n["y"] for n in _dag_nodes}
-
-    _fig_dag = go.Figure()
-    for _src, _dst, _active in _dag_edges:
-        _fig_dag.add_trace(go.Scatter(
-            x=[_nxs[_src], _nxs[_dst], None],
-            y=[_nys[_src], _nys[_dst], None],
-            mode="lines",
-            line=dict(color=PRIMARY if _active else "#CBD5E1",
-                      width=2.5 if _active else 1.2),
-            showlegend=False, hoverinfo="skip",
+        _fig_sc = go.Figure(go.Bar(
+            x=_sc_names, y=_sc_delays,
+            marker_color=_sc_colors,
+            text=[f"{v:.1f}d" for v in _sc_delays],
+            textposition="outside",
         ))
-    for _n in _dag_nodes:
-        _ncol = _role_colors.get(_n["role"], MUTED)
-        _fig_dag.add_trace(go.Scatter(
-            x=[_n["x"]], y=[_n["y"]],
-            mode="markers+text",
-            marker=dict(size=42, color=_ncol, opacity=0.88,
-                        line=dict(color="white", width=2.5)),
-            text=[_n["id"].replace("_", "<br>")],
-            textposition="bottom center",
-            textfont=dict(size=8, color=TEXT),
-            showlegend=False,
-            hovertemplate=f"<b>{_n['id']}</b><br>Role: {_n['role']}<extra></extra>",
+        _scl = dict(**PLOTLY_LAYOUT)
+        _scl.update(dict(
+            height=260, showlegend=False,
+            margin=dict(l=10, r=10, t=20, b=20),
+            yaxis={"title": f"{_sim_out_lbl} (days)", "gridcolor": BORDER},
         ))
-    _dagl = dict(**PLOTLY_LAYOUT)
-    _dagl.update(dict(
-        height=380, plot_bgcolor="#FAFBFC",
-        margin=dict(l=10, r=10, t=20, b=60),
-        xaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
-        yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
-    ))
-    _fig_dag.update_layout(**_dagl)
+        _fig_sc.update_layout(**_scl)
+        st.plotly_chart(_fig_sc, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
 
-    _leg_html = '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;">'
-    for _role, _col in _role_colors.items():
+with _botr:
+    with st.container(border=True):
+        _sim_lg1, _sim_lg2 = st.columns([5, 1])
+        with _sim_lg1:
+            _sim_section_header("#D1FAE5", "🔀", "Live Causal Graph — Intervention Propagation")
+        with _sim_lg2:
+            st.markdown(
+                '<div style="display:flex;align-items:center;gap:5px;margin-top:4px;">'
+                '<span style="width:7px;height:7px;background:#10B981;border-radius:50%;'
+                'box-shadow:0 0 0 3px rgba(16,185,129,0.22);display:inline-block;"></span>'
+                '<span style="font-size:0.72rem;font-weight:600;color:#059669;">Live</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+        if _is_mfg_sim:
+            _dag_nodes = [
+                {"id": "order_complexity",      "x": 0.0, "y": 3.0, "role": "Confounder"},
+                {"id": "supplier_a",            "x": 0.0, "y": 0.0, "role": "Treatment"},
+                {"id": "material_lead_time",    "x": 2.5, "y": 0.0, "role": "Mediator"},
+                {"id": "machine_queue",         "x": 2.5, "y": 3.0, "role": "Mediator"},
+                {"id": "approval_duration",     "x": 5.0, "y": 2.0, "role": "Mediator"},
+                {"id": "export_flag",           "x": 2.5, "y": 5.0, "role": "Confounder"},
+                {"id": "carrier_express",       "x": 5.0, "y": 0.0, "role": "Treatment"},
+                {"id": "shipment_delay",        "x": 7.5, "y": 2.0, "role": "Outcome"},
+            ]
+            _dag_edges = [
+                ("supplier_a",         "material_lead_time",
+                 _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
+                ("order_complexity",   "machine_queue",  False),
+                ("machine_queue",      "approval_duration",
+                 _lv["machine_capacity_expanded"] or _lv["additional_workforce"] > 0),
+                ("export_flag",        "approval_duration",  _lv["export_flag_reduction"]),
+                ("material_lead_time", "shipment_delay",
+                 _lv["material_lead_time_mode"] != "Current" or
+                 _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
+                ("approval_duration",  "shipment_delay",
+                 _lv["approval_automation"] or _lv["export_flag_reduction"]),
+                ("carrier_express",    "shipment_delay",
+                 _lv["carrier_express_pct"] != _MFG_DEFAULTS["carrier_express_pct"]),
+                ("order_complexity",   "shipment_delay",  False),
+            ]
+        else:
+            _dag_nodes = [
+                {"id": "patient_complexity",     "x": 0.0, "y": 1.0, "role": "Confounder"},
+                {"id": "specialist_requirement", "x": 0.0, "y": 3.0, "role": "Treatment"},
+                {"id": "bed_occupancy",          "x": 3.0, "y": 2.0, "role": "Mediator"},
+                {"id": "triage_score",           "x": 1.5, "y": 0.0, "role": "Mediator"},
+                {"id": "treatment_duration",     "x": 6.0, "y": 2.0, "role": "Outcome"},
+            ]
+            _dag_edges = [
+                ("patient_complexity",     "treatment_duration",    False),
+                ("specialist_requirement", "treatment_duration",
+                 _lv["specialist_allocation_pct"] != _HC_DEFAULTS["specialist_allocation_pct"]),
+                ("bed_occupancy",          "treatment_duration",    _lv["bed_capacity_expanded"]),
+                ("triage_score",           "specialist_requirement", _lv["triage_automation"]),
+            ]
+
+        _role_colors = {
+            "Confounder": WARNING, "Treatment": PRIMARY, "Mediator": INFO, "Outcome": ERROR,
+        }
+        # Wider spacing (1.35x) so labels have room to breathe and don't
+        # crowd/overlap neighboring nodes or edges.
+        _space = 1.35
+        for _n in _dag_nodes:
+            _n["x"] *= _space
+            _n["y"] *= _space
+        _nxs = {n["id"]: n["x"] for n in _dag_nodes}
+        _nys = {n["id"]: n["y"] for n in _dag_nodes}
+
+        # Nodes touched by at least one currently-active edge get a soft
+        # halo — real derived state (from the same _active flags driving
+        # edge color), not decoration, so it's obvious at a glance which
+        # part of the graph your current lever changes are running through.
+        _active_nodes = set()
+        for _src, _dst, _active in _dag_edges:
+            if _active:
+                _active_nodes.add(_src)
+                _active_nodes.add(_dst)
+
+        import math
+        _fig_dag = go.Figure()
+        for _src, _dst, _active in _dag_edges:
+            _x0, _y0, _x1, _y1 = _nxs[_src], _nys[_src], _nxs[_dst], _nys[_dst]
+            _fig_dag.add_trace(go.Scatter(
+                x=[_x0, _x1, None], y=[_y0, _y1, None],
+                mode="lines",
+                line=dict(color=PRIMARY if _active else "#D7DEE8",
+                          width=3 if _active else 1.2),
+                showlegend=False, hoverinfo="skip",
+            ))
+            # Directional arrowhead ~62% of the way from source to target —
+            # close enough to the destination to read as "pointing at it"
+            # without the marker sitting on top of the node itself.
+            _dx, _dy = _x1 - _x0, _y1 - _y0
+            _ang = math.degrees(math.atan2(-_dy, _dx))  # plotly angle is clockwise from east
+            _ax, _ay = _x0 + _dx * 0.62, _y0 + _dy * 0.62
+            _fig_dag.add_trace(go.Scatter(
+                x=[_ax], y=[_ay], mode="markers",
+                marker=dict(symbol="triangle-right", size=11 if _active else 8,
+                            color=PRIMARY if _active else "#B9C2D0",
+                            angle=_ang, line=dict(width=0)),
+                showlegend=False, hoverinfo="skip",
+            ))
+        for _n in _dag_nodes:
+            _ncol = _role_colors.get(_n["role"], MUTED)
+            if _n["id"] in _active_nodes:
+                _fig_dag.add_trace(go.Scatter(
+                    x=[_n["x"]], y=[_n["y"]], mode="markers",
+                    marker=dict(size=64, color=_ncol, opacity=0.18, line=dict(width=0)),
+                    showlegend=False, hoverinfo="skip",
+                ))
+            _fig_dag.add_trace(go.Scatter(
+                x=[_n["x"]], y=[_n["y"]],
+                mode="markers+text",
+                marker=dict(size=46, color=_ncol, opacity=0.92,
+                            line=dict(color="white", width=2.5)),
+                text=[_n["id"].replace("_", "<br>")],
+                textposition="bottom center",
+                textfont=dict(size=9, color=TEXT),
+                showlegend=False,
+                hovertemplate=f"<b>{_n['id']}</b><br>Role: {_n['role']}<extra></extra>",
+            ))
+        _pad = 1.6  # data-unit padding so edge-row labels don't clip against the axes
+        _xs_all = [n["x"] for n in _dag_nodes]
+        _ys_all = [n["y"] for n in _dag_nodes]
+        _dagl = dict(**PLOTLY_LAYOUT)
+        _dagl.update(dict(
+            height=400, plot_bgcolor="#FAFBFC",
+            margin=dict(l=10, r=10, t=20, b=70),
+            xaxis={"showgrid": False, "zeroline": False, "showticklabels": False,
+                   "range": [min(_xs_all) - _pad, max(_xs_all) + _pad]},
+            yaxis={"showgrid": False, "zeroline": False, "showticklabels": False,
+                   "range": [min(_ys_all) - _pad, max(_ys_all) + _pad]},
+        ))
+        _fig_dag.update_layout(**_dagl)
+
+        _leg_html = '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;">'
+        for _role, _col in _role_colors.items():
+            _leg_html += (
+                f'<div style="display:flex;align-items:center;gap:4px;">'
+                f'<span style="width:11px;height:11px;border-radius:50%;background:{_col};'
+                f'display:inline-block;"></span>'
+                f'<span style="font-size:0.75rem;color:{MUTED};">{_role}</span></div>'
+            )
         _leg_html += (
             f'<div style="display:flex;align-items:center;gap:4px;">'
-            f'<span style="width:11px;height:11px;border-radius:50%;background:{_col};'
-            f'display:inline-block;"></span>'
-            f'<span style="font-size:0.75rem;color:{MUTED};">{_role}</span></div>'
+            f'<span style="width:18px;height:2px;background:{PRIMARY};display:inline-block;">'
+            f'</span><span style="font-size:0.75rem;color:{MUTED};">Active path</span></div>'
+            f'<div style="display:flex;align-items:center;gap:4px;">'
+            f'<span style="width:18px;height:2px;background:#CBD5E1;display:inline-block;">'
+            f'</span><span style="font-size:0.75rem;color:{MUTED};">Passive edge</span></div>'
+            '</div>'
         )
-    _leg_html += (
-        f'<div style="display:flex;align-items:center;gap:4px;">'
-        f'<span style="width:18px;height:2px;background:{PRIMARY};display:inline-block;">'
-        f'</span><span style="font-size:0.75rem;color:{MUTED};">Active path</span></div>'
-        f'<div style="display:flex;align-items:center;gap:4px;">'
-        f'<span style="width:18px;height:2px;background:#CBD5E1;display:inline-block;">'
-        f'</span><span style="font-size:0.75rem;color:{MUTED};">Passive edge</span></div>'
-        '</div>'
-    )
-    st.markdown(_leg_html, unsafe_allow_html=True)
-    st.plotly_chart(_fig_dag, use_container_width=True, theme=None,
-                    config={"displayModeBar": False})
+        st.markdown(_leg_html, unsafe_allow_html=True)
+        st.plotly_chart(_fig_dag, use_container_width=True, theme=None,
+                        config={"displayModeBar": False})
 
 # SECTION 4: Recovery Visualization (Horizontal Chart)
 if not coefs.empty:
@@ -1338,6 +1230,217 @@ _domain_validation_note_html = (
 )
 
 
+
+# SECTION 1: Structural Equation Summary
+t3_col_eq = st.container()
+
+with t3_col_eq:
+    st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Structural Equation Summary</h4>", unsafe_allow_html=True)
+    
+    cards_html = f'<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px;">'
+    for node, eq in scm.items():
+        mt = eq["model_type"]
+        mt_display = mt.replace("_", " ").title()
+        val = eq['r2_score']
+        metric = eq['metric_label']
+        
+        if mt == "logistic":
+            status = "Reliable Classification"
+        elif mt == "gradient_boosting":
+            status = "High Confidence"
+        else:
+            status = "Linear Fit"
+        # Color reflects the fit quality itself (same thresholds used for
+        # Model Confidence elsewhere in this tab), not just which model ran.
+        if val >= 0.9:
+            color = "#059669"
+        elif val >= 0.7:
+            color = "#D97706"
+        else:
+            color = "#DC2626"
+        status = f"{'✓' if val >= 0.7 else '⚠'} {status}"
+            
+        node_clean = node.replace("_", " ").title()
+        
+        cards_html += (
+            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid {color}; padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
+            f'<div style="color:#1E293B; font-size:1.1rem; font-weight:700; margin-bottom:8px;">{node_clean}</div>'
+            f'<div style="color:#64748B; font-size:0.9rem; margin-bottom:12px;">{mt_display}</div>'
+            f'<div style="display:flex; justify-content:space-between; align-items:center;">'
+            f'<div style="font-size:1rem; font-weight:600; color:#334155;">{metric} = {val:.3f}</div>'
+            f'<div style="font-size:0.8rem; font-weight:600; color:{color};">{status}</div>'
+            f'</div>'
+            f'</div>'
+        )
+    cards_html += '</div>'
+    st.markdown(cards_html, unsafe_allow_html=True)
+
+# Calculate validation metrics
+if not coefs.empty:
+    total_edges = len(coefs)
+    # Sign Error or no comparison
+    recovered_edges = len(coefs[coefs['status'] != 'Sign Error'])
+    # Domains without a planted numeric ground truth (e.g. healthcare — see
+    # _MFG_GROUND_TRUTH in phase3_scm.py) have pct_error/abs_error all-NaN by
+    # design (structural demonstration only, not numerical validation). Show
+    # that honestly instead of ".mean()" silently producing "nan%".
+    _raw_mean_error = coefs['pct_error'].mean() if 'pct_error' in coefs else 0.0
+    mean_error_str = f"{_raw_mean_error:.1%}" if pd.notna(_raw_mean_error) else "N/A"
+    sign_consistency = (recovered_edges / total_edges) * 100 if total_edges > 0 else 100.0
+
+    if 'abs_error' in coefs and not coefs['abs_error'].isna().all():
+        best_idx = coefs['abs_error'].idxmin()
+        best_edge_row = coefs.loc[best_idx]
+        strongest_recovery = f"{best_edge_row['parent']} → {best_edge_row['child']}"
+        strongest_err_str = f"{best_edge_row['pct_error']:.1%} Error"
+    else:
+        strongest_recovery = "N/A"
+        strongest_err_str = "No numeric ground truth for this domain"
+        
+    # SECTION 2: Model Validation Summary
+    st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Model Validation Summary</h4>", unsafe_allow_html=True)
+    
+    val_html = (
+        f'<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">'
+        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
+        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Relationships Recovered</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{SUCCESS}; margin-top:4px;">{recovered_edges} / {total_edges}</div>'
+        f'<div style="font-size:0.8rem; font-weight:600; color:{SUCCESS}; margin-top:2px;">{sign_consistency:.0f}% sign-consistent</div>'
+        f'</div>'
+        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
+        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Mean Relative Error</div>'
+        f'<div style="font-size:1.8rem; font-weight:800; color:{SUCCESS}; margin-top:4px;">{mean_error_str}</div>'
+        f'</div>'
+        f'<div style="background:#F0FDF4; border:1px solid #BBF7D0; padding:16px; border-radius:10px;">'
+        f'<div style="color:{SUCCESS}; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Strongest Recovery</div>'
+        f'<div style="font-size:1rem; font-weight:700; color:{SUCCESS}; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{strongest_recovery}">{strongest_recovery}</div>'
+        f'<div style="font-size:0.8rem; font-weight:600; color:{SUCCESS}; margin-top:2px;">{strongest_err_str}</div>'
+        f'</div>'
+        f'</div>'
+    )
+    st.markdown(val_html, unsafe_allow_html=True)
+    
+# ── SECTION 2.5: Treatment Effect Heterogeneity (CATE) ──────────────────────
+if not is_custom:
+    _mod_var   = cfg.get("moderator_var", "")
+    _mod_label = cfg.get("moderator_label", "Complexity")
+    _treat_lbl = cfg["treatment_var"].replace("_", " ").title()
+    _out_lbl   = cfg["outcome_label"]
+
+    if _mod_var and _mod_var in df.columns:
+        with st.spinner("Computing treatment effect heterogeneity…"):
+            # Cached on (domain, n, seed) — this is ~30 Double-ML-with-GBM
+            # fits (~13s); previously recomputed on every rerun (including
+            # tab switches) since it was called uncached, directly.
+            _cate_data = _compute_cate(domain, n_int, seed_int)
+
+        if _cate_data:
+            st.markdown(
+                "<h4 style='color:#1E293B; margin-bottom:4px; margin-top:32px;'>"
+                "Treatment Effect Heterogeneity</h4>"
+                f"<p style='color:#64748B; font-size:0.88rem; margin-bottom:16px;'>"
+                f"Does the causal effect of <b>{_treat_lbl}</b> on <b>{_out_lbl}</b> "
+                f"differ across <b>{_mod_label}</b> segments? "
+                f"Each bar is a Double ML estimate within that subgroup. "
+                f"Error bars show 95% CI.</p>",
+                unsafe_allow_html=True,
+            )
+
+            _cate_labels   = [r["label"]    for r in _cate_data]
+            _cate_ests     = [r["estimate"] for r in _cate_data]
+            _cate_ci_lo    = [r["ci_low"]   for r in _cate_data]
+            _cate_ci_hi    = [r["ci_high"]  for r in _cate_data]
+            _cate_ns       = [r["n"]        for r in _cate_data]
+            _cate_err_lo   = [e - l for e, l in zip(_cate_ests, _cate_ci_lo)]
+            _cate_err_hi   = [h - e for e, h in zip(_cate_ests, _cate_ci_hi)]
+
+            # Segment colours: Low=blue, Mid=amber, High=red
+            _seg_colors = ["#3B82F6", "#F59E0B", "#EF4444"][:len(_cate_data)]
+
+            _fig_cate = go.Figure()
+            _fig_cate.add_trace(go.Bar(
+                x=_cate_labels,
+                y=_cate_ests,
+                error_y=dict(
+                    type="data",
+                    symmetric=False,
+                    array=_cate_err_hi,
+                    arrayminus=_cate_err_lo,
+                    color="#94A3B8",
+                    thickness=2,
+                    width=6,
+                ),
+                marker_color=_seg_colors,
+                marker_line=dict(color="white", width=1.5),
+                opacity=0.88,
+                text=[f"{e:+.2f}" for e in _cate_ests],
+                textposition="outside",
+                textfont=dict(size=13, color="#1E293B"),
+                customdata=_cate_ns,
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    "CATE: %{y:+.3f} days<br>"
+                    "95% CI: [%{error_y.arrayminus:.3f} – %{error_y.array:.3f}]<br>"
+                    "n = %{customdata}<extra></extra>"
+                ),
+                name="CATE",
+                showlegend=False,
+            ))
+
+            # Average treatment effect reference line
+            _avg_est = sum(_cate_ests) / len(_cate_ests)
+            _fig_cate.add_hline(
+                y=_avg_est,
+                line_dash="dot",
+                line_color="#6366F1",
+                line_width=1.5,
+                annotation_text=f"  ATE ≈ {_avg_est:+.2f} (binary full-switch vs no treatment)",
+                annotation_font=dict(color="#6366F1", size=11),
+                annotation_position="right",
+            )
+
+            _cate_layout = dict(**PLOTLY_LAYOUT)
+            _cate_layout.update(dict(
+                height=340,
+                margin=dict(l=20, r=80, t=30, b=60),
+                yaxis={**PLOTLY_LAYOUT.get("yaxis", {}),
+                       "title": f"Causal Effect on {_out_lbl}",
+                       "title_font": dict(size=12),
+                       "zeroline": True,
+                       "zerolinecolor": "#E2E8F0",
+                       "zerolinewidth": 1.5},
+                xaxis={**PLOTLY_LAYOUT.get("xaxis", {}),
+                       "title": _mod_label,
+                       "title_font": dict(size=12)},
+            ))
+            _fig_cate.update_layout(**_cate_layout)
+            st.plotly_chart(_fig_cate, use_container_width=True, theme=None,
+                            config={"displayModeBar": False})
+
+            # Insight card
+            _max_cate = max(_cate_data, key=lambda r: r["estimate"])
+            _min_cate = min(_cate_data, key=lambda r: r["estimate"])
+            _spread   = _max_cate["estimate"] - _min_cate["estimate"]
+            _spread_pct = (_spread / abs(_min_cate["estimate"]) * 100
+                           if abs(_min_cate["estimate"]) > 0.01 else 0)
+            st.markdown(
+                f'<div style="background:#F8FAFC; border:1px solid #E2E8F0; '
+                f'border-left:4px solid #6366F1; border-radius:8px; '
+                f'padding:14px 18px; margin-top:4px; margin-bottom:8px;">'
+                f'<div style="color:#6366F1; font-size:0.72rem; font-weight:800; '
+                f'text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Conditional Average Treatment Effect (CATE)</div>'
+                f'<div style="color:#1E293B; font-size:0.95rem; line-height:1.6;">'
+                f'The causal effect of <b>{_treat_lbl}</b> is strongest in the '
+                f'<b>{_max_cate["label"].split(" (")[0]}</b> complexity segment '
+                f'(<b>{_max_cate["estimate"]:+.2f} days</b>), '
+                f'{_spread_pct:.0f}% larger than the '
+                f'{_min_cate["label"].split(" (")[0]} segment '
+                f'({_min_cate["estimate"]:+.2f} days). '
+                f'This heterogeneity suggests <b>targeted interventions</b> '
+                f'would yield different returns by {_mod_label.lower()} profile.'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 7 — CEO DECISION INTELLIGENCE REPORT
