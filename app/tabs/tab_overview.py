@@ -113,11 +113,48 @@ _ov_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
 _ov_prec = _ov_wodk.get("precision", dag_metrics.get("precision", 0.0))
 _ov_rec  = _ov_wodk.get("recall",    dag_metrics.get("recall",    0.0))
 _ov_f1   = _ov_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
+_ov_tp     = _ov_wodk.get("true_positives",  0)
+_ov_fp     = _ov_wodk.get("false_positives", 0)
+_ov_fn     = _ov_wodk.get("false_negatives", 0)
+_ov_boot_n = dag.graph.get("bootstrap_n", 20)
 
 def _ov_status(frac):
     if frac >= 0.85: return SUCCESS, "Strong"
     if frac >= 0.65: return WARNING, "Moderate"
     return ERROR, "Needs Review"
+
+# Per-metric "i" info icon — a native title attribute, not a custom tooltip
+# widget, so it needs no JS and can't trip the React-crash issue hit earlier
+# with inline onclick handlers. Each one spells out the actual formula with
+# this run's real TP/FP/FN counts, not just a generic definition, so hovering
+# any single box answers "how did THIS number happen" on its own.
+def _ov_info_icon(tooltip):
+    return (
+        f'<span title="{tooltip}" style="display:inline-flex;align-items:center;justify-content:center;'
+        f'width:15px;height:15px;border-radius:50%;background:{BORDER};color:{MUTED};'
+        f'font-size:0.62rem;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;">i</span>'
+    )
+
+_OV_TOOLTIPS = {
+    "Bootstrap Stability": (
+        f"Reruns causal discovery {_ov_boot_n}× on resampled copies of the data and checks "
+        f"how often each ground-truth edge showed up again. Answers: would we get the same graph "
+        f"on slightly different data, or did we get lucky once?"
+    ),
+    "Precision": (
+        f"Correct edges found ÷ all edges the algorithm proposed = {_ov_tp} ÷ "
+        f"({_ov_tp} + {_ov_fp}) = {_ov_prec:.2f}. Of what it claimed was a causal link, how much "
+        f"was actually right?"
+    ),
+    "Edge Recall": (
+        f"Correct edges found ÷ all true edges that exist = {_ov_tp} ÷ "
+        f"({_ov_tp} + {_ov_fn}) = {_ov_rec:.2f}. Of the real causal links, how many did it find?"
+    ),
+    "Recovery F1": (
+        f"Harmonic mean of precision and recall = 2×(P×R)/(P+R) = {_ov_f1:.2f}. "
+        f"One number balancing both — high only if precision AND recall are both good."
+    ),
+}
 
 def _ov_metric_tile(icon, value, label, frac):
     _color, _status = _ov_status(frac)
@@ -130,8 +167,11 @@ def _ov_metric_tile(icon, value, label, frac):
         f'padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">{_status}</span>'
         f'</div>'
         f'<div style="font-size:1.7rem;font-weight:900;color:{TEXT};line-height:1.1;">{value}</div>'
-        f'<div style="font-size:0.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
-        f'letter-spacing:0.05em;margin-top:5px;margin-bottom:8px;">{label}</div>'
+        f'<div style="display:flex;align-items:center;gap:5px;margin-top:5px;margin-bottom:8px;">'
+        f'<span style="font-size:0.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
+        f'letter-spacing:0.05em;">{label}</span>'
+        + _ov_info_icon(_OV_TOOLTIPS.get(label, ""))
+        + f'</div>'
         f'<div style="height:4px;background:{BORDER};border-radius:2px;overflow:hidden;">'
         f'<div style="height:100%;width:{frac*100:.0f}%;background:{_color};border-radius:2px;"></div>'
         f'</div>'
@@ -169,11 +209,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 with st.expander("ℹ️ How is this measured?"):
-    _ov_gt_n   = len(_ov_wodk.get("ground_truth_edges", [])) or dag.number_of_edges() or 9
-    _ov_tp     = _ov_wodk.get("true_positives",  0)
-    _ov_fp     = _ov_wodk.get("false_positives", 0)
-    _ov_fn     = _ov_wodk.get("false_negatives", 0)
-    _ov_boot_n = dag.graph.get("bootstrap_n", 20)
+    _ov_gt_n = len(_ov_wodk.get("ground_truth_edges", [])) or dag.number_of_edges() or 9
 
     def _ov_flow_step(n, icon, title, desc):
         return (

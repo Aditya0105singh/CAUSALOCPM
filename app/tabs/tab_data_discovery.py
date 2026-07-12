@@ -86,11 +86,47 @@ _dq_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
 _dq_prec = _dq_wodk.get("precision", dag_metrics.get("precision", 0.0))
 _dq_rec  = _dq_wodk.get("recall",    dag_metrics.get("recall",    0.0))
 _dq_f1   = _dq_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
+_dq_tp     = _dq_wodk.get("true_positives",  0)
+_dq_fp     = _dq_wodk.get("false_positives", 0)
+_dq_fn     = _dq_wodk.get("false_negatives", 0)
+_dq_boot_n = dag.graph.get("bootstrap_n", 20)
 
 def _dq_status(frac):
     if frac >= 0.85: return SUCCESS, "Strong"
     if frac >= 0.65: return WARNING, "Moderate"
     return ERROR, "Needs Review"
+
+# Per-metric "i" info icon (native title attribute — no JS, so it can't hit
+# the React-crash issue an onclick-based tooltip would). Each one spells out
+# the actual formula with this run's real TP/FP/FN counts, so hovering any
+# single box answers "how did THIS number happen" without leaving the card.
+def _dq_info_icon(tooltip):
+    return (
+        f'<span title="{tooltip}" style="display:inline-flex;align-items:center;justify-content:center;'
+        f'width:15px;height:15px;border-radius:50%;background:{BORDER};color:{MUTED};'
+        f'font-size:0.62rem;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;">i</span>'
+    )
+
+_DQ_TOOLTIPS = {
+    "Bootstrap Stability": (
+        f"Reruns causal discovery {_dq_boot_n}× on resampled copies of the data and checks "
+        f"how often each ground-truth edge showed up again. Answers: would we get the same graph "
+        f"on slightly different data, or did we get lucky once?"
+    ),
+    "Precision": (
+        f"Correct edges found ÷ all edges the algorithm proposed = {_dq_tp} ÷ "
+        f"({_dq_tp} + {_dq_fp}) = {_dq_prec:.2f}. Of what it claimed was a causal link, how much "
+        f"was actually right?"
+    ),
+    "Edge Recall": (
+        f"Correct edges found ÷ all true edges that exist = {_dq_tp} ÷ "
+        f"({_dq_tp} + {_dq_fn}) = {_dq_rec:.2f}. Of the real causal links, how many did it find?"
+    ),
+    "Recovery F1": (
+        f"Harmonic mean of precision and recall = 2×(P×R)/(P+R) = {_dq_f1:.2f}. "
+        f"One number balancing both — high only if precision AND recall are both good."
+    ),
+}
 
 def _dq_tile(icon, value_str, label, frac):
     _color, _status = _dq_status(frac)
@@ -103,8 +139,11 @@ def _dq_tile(icon, value_str, label, frac):
         f'padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">{_status}</span>'
         f'</div>'
         f'<div style="font-size:1.9rem;font-weight:900;color:{TEXT};line-height:1;">{value_str}</div>'
-        f'<div style="font-size:0.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
-        f'letter-spacing:0.05em;margin-top:6px;margin-bottom:9px;">{label}</div>'
+        f'<div style="display:flex;align-items:center;gap:5px;margin-top:6px;margin-bottom:9px;">'
+        f'<span style="font-size:0.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
+        f'letter-spacing:0.05em;">{label}</span>'
+        + _dq_info_icon(_DQ_TOOLTIPS.get(label, ""))
+        + f'</div>'
         f'<div style="height:5px;background:{BORDER};border-radius:3px;overflow:hidden;">'
         f'<div style="height:100%;width:{frac*100:.0f}%;background:{_color};border-radius:3px;"></div>'
         f'</div>'
@@ -142,11 +181,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 with st.expander("ℹ️ How are these numbers calculated?"):
-    _dq_gt_n   = len(_dq_wodk.get("ground_truth_edges", [])) or dag.number_of_edges() or 9
-    _dq_tp     = _dq_wodk.get("true_positives",  0)
-    _dq_fp     = _dq_wodk.get("false_positives", 0)
-    _dq_fn     = _dq_wodk.get("false_negatives", 0)
-    _dq_boot_n = dag.graph.get("bootstrap_n", 20)
+    _dq_gt_n = len(_dq_wodk.get("ground_truth_edges", [])) or dag.number_of_edges() or 9
 
     def _dq_flow_step(n, icon, title, desc):
         return (
