@@ -107,24 +107,48 @@ def _dq_info_icon(tooltip):
         f'font-size:0.62rem;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;">i</span>'
     )
 
+# See tab_overview.py's identical _NL comment: a literal blank line inside
+# a title="..." attribute gets read as a markdown paragraph break by
+# st.markdown()'s markdown-to-HTML pass and corrupts the tag, so real "\n\n"
+# is replaced with a numeric-entity newline that markdown leaves alone but
+# the browser still renders as a line break in the native tooltip.
+_NL = "&#10;&#10;"
+_dq_gt_n_hint = _dq_tp + _dq_fn
 _DQ_TOOLTIPS = {
     "Bootstrap Stability": (
-        f"Reruns causal discovery {_dq_boot_n}× on resampled copies of the data and checks "
-        f"how often each ground-truth edge showed up again. Answers: would we get the same graph "
-        f"on slightly different data, or did we get lucky once?"
+        f"Think of it as asking {_dq_boot_n} independent witnesses the same question instead of "
+        f"trusting just one. The algorithm reruns causal discovery {_dq_boot_n} times, each on a "
+        f"slightly different resampled slice of the same data, and checks how often it lands on "
+        f"the same causal edges.{_NL}"
+        f"A relationship that keeps reappearing across resamples is likely a real pattern in how "
+        f"the process behaves, not a coincidence of this one dataset. One that only shows up once "
+        f"is a red flag it might just be noise.{_NL}"
+        f"Result here: {_boot_stab_pct:.0f}% agreement across {_dq_boot_n} reruns — most of what "
+        f"was found holds up under repeated testing."
     ),
     "Precision": (
-        f"Correct edges found ÷ all edges the algorithm proposed = {_dq_tp} ÷ "
-        f"({_dq_tp} + {_dq_fp}) = {_dq_prec:.2f}. Of what it claimed was a causal link, how much "
-        f"was actually right?"
+        f"Picture the algorithm as a detective naming suspects. Precision asks: of everyone it "
+        f"accused, how many were actually guilty?{_NL}"
+        f"It named {_dq_tp + _dq_fp} relationships as causal. {_dq_tp} matched the real planted "
+        f"structure; {_dq_fp} were false accusations — links it claimed exist but don't.{_NL}"
+        f"{_dq_tp} correct ÷ {_dq_tp + _dq_fp} accused = {_dq_prec:.2f}. A high score means that "
+        f"when this model says 'A causes B,' you can trust it — it rarely cries wolf."
     ),
     "Edge Recall": (
-        f"Correct edges found ÷ all true edges that exist = {_dq_tp} ÷ "
-        f"({_dq_tp} + {_dq_fn}) = {_dq_rec:.2f}. Of the real causal links, how many did it find?"
+        f"This flips the question around: of all {_dq_gt_n_hint} real causal relationships "
+        f"actually planted in the data, how many did the algorithm manage to dig up on its own?{_NL}"
+        f"It correctly found {_dq_tp}, and missed {_dq_fn}. {_dq_tp} found ÷ {_dq_gt_n_hint} that "
+        f"truly exist = {_dq_rec:.2f}.{_NL}"
+        f"A high score means the model is thorough — it doesn't leave real causes undiscovered, "
+        f"even if it occasionally over-claims (that's what Precision catches separately)."
     ),
     "Recovery F1": (
-        f"Harmonic mean of precision and recall = 2×(P×R)/(P+R) = {_dq_f1:.2f}. "
-        f"One number balancing both — high only if precision AND recall are both good."
+        f"Precision and Recall pull against each other. You could fake a perfect Precision by "
+        f"only naming the one relationship you're 100% sure about — or fake a perfect Recall by "
+        f"claiming every possible link exists and being wrong most of the time.{_NL}"
+        f"F1 is the honest referee: the harmonic mean of both, 2×(P×R)÷(P+R) = {_dq_f1:.2f}. It "
+        f"only scores high when precision AND recall are genuinely strong together — you can't "
+        f"game it by leaning on just one."
     ),
 }
 

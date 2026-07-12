@@ -135,24 +135,53 @@ def _ov_info_icon(tooltip):
         f'font-size:0.62rem;font-weight:800;font-style:normal;cursor:help;flex-shrink:0;">i</span>'
     )
 
+# NL = literal HTML numeric-entity newline, not a real "\n\n" blank line.
+# st.markdown() runs its whole argument through a markdown-to-HTML pass
+# before the browser ever sees it, even the parts inside our raw HTML
+# attributes — a literal blank line inside title="..." gets read as a
+# markdown paragraph break and Streamlit splits the tag apart around it,
+# corrupting the whole card (verified: rendered as a mangled <p>...</p>
+# spliced into the middle of the attribute, breaking is/left the "i" icon
+# not existing anywhere in the DOM). The numeric entity has no literal
+# newline in the source, so markdown leaves it alone, and the browser still
+# renders it as a real line break inside the native tooltip.
+_NL = "&#10;&#10;"
+_ov_gt_n_hint = _ov_tp + _ov_fn
 _OV_TOOLTIPS = {
     "Bootstrap Stability": (
-        f"Reruns causal discovery {_ov_boot_n}× on resampled copies of the data and checks "
-        f"how often each ground-truth edge showed up again. Answers: would we get the same graph "
-        f"on slightly different data, or did we get lucky once?"
+        f"Think of it as asking {_ov_boot_n} independent witnesses the same question instead of "
+        f"trusting just one. The algorithm reruns causal discovery {_ov_boot_n} times, each on a "
+        f"slightly different resampled slice of the same data, and checks how often it lands on "
+        f"the same causal edges.{_NL}"
+        f"A relationship that keeps reappearing across resamples is likely a real pattern in how "
+        f"the process behaves, not a coincidence of this one dataset. One that only shows up once "
+        f"is a red flag it might just be noise.{_NL}"
+        f"Result here: {_boot_stab_pct:.0f}% agreement across {_ov_boot_n} reruns — most of what "
+        f"was found holds up under repeated testing."
     ),
     "Precision": (
-        f"Correct edges found ÷ all edges the algorithm proposed = {_ov_tp} ÷ "
-        f"({_ov_tp} + {_ov_fp}) = {_ov_prec:.2f}. Of what it claimed was a causal link, how much "
-        f"was actually right?"
+        f"Picture the algorithm as a detective naming suspects. Precision asks: of everyone it "
+        f"accused, how many were actually guilty?{_NL}"
+        f"It named {_ov_tp + _ov_fp} relationships as causal. {_ov_tp} matched the real planted "
+        f"structure; {_ov_fp} were false accusations — links it claimed exist but don't.{_NL}"
+        f"{_ov_tp} correct ÷ {_ov_tp + _ov_fp} accused = {_ov_prec:.2f}. A high score means that "
+        f"when this model says 'A causes B,' you can trust it — it rarely cries wolf."
     ),
     "Edge Recall": (
-        f"Correct edges found ÷ all true edges that exist = {_ov_tp} ÷ "
-        f"({_ov_tp} + {_ov_fn}) = {_ov_rec:.2f}. Of the real causal links, how many did it find?"
+        f"This flips the question around: of all {_ov_gt_n_hint} real causal relationships "
+        f"actually planted in the data, how many did the algorithm manage to dig up on its own?{_NL}"
+        f"It correctly found {_ov_tp}, and missed {_ov_fn}. {_ov_tp} found ÷ {_ov_gt_n_hint} that "
+        f"truly exist = {_ov_rec:.2f}.{_NL}"
+        f"A high score means the model is thorough — it doesn't leave real causes undiscovered, "
+        f"even if it occasionally over-claims (that's what Precision catches separately)."
     ),
     "Recovery F1": (
-        f"Harmonic mean of precision and recall = 2×(P×R)/(P+R) = {_ov_f1:.2f}. "
-        f"One number balancing both — high only if precision AND recall are both good."
+        f"Precision and Recall pull against each other. You could fake a perfect Precision by "
+        f"only naming the one relationship you're 100% sure about — or fake a perfect Recall by "
+        f"claiming every possible link exists and being wrong most of the time.{_NL}"
+        f"F1 is the honest referee: the harmonic mean of both, 2×(P×R)÷(P+R) = {_ov_f1:.2f}. It "
+        f"only scores high when precision AND recall are genuinely strong together — you can't "
+        f"game it by leaning on just one."
     ),
 }
 
