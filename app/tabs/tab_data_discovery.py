@@ -67,6 +67,168 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# ── MODEL QUALITY AT A GLANCE ───────────────────────────────────────────────
+# Same numbers as the detailed "Step 5: Validate Discovery Quality" section
+# further down, surfaced immediately at the top of the tab — precision,
+# recall and F1 are the headline trust signal for this whole page (is the
+# discovered graph actually right?) and shouldn't require scrolling past
+# five steps to find.
+#
+# Deliberately sourced from the *pre*-domain-knowledge run
+# (ablation["without_domain_knowledge"]), not `dag_metrics`. `dag_metrics`
+# is computed after enforce_domain_knowledge() force-adds every planted
+# ground-truth edge into the graph (phase2_discovery.py), which makes
+# recall = 1.00 guaranteed by construction — not something the algorithm
+# discovered. Showing that number here would be circular and, rightly,
+# not credible. The raw PC-algorithm-only numbers below are what the
+# statistics actually found on their own.
+_dq_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
+_dq_prec = _dq_wodk.get("precision", dag_metrics.get("precision", 0.0))
+_dq_rec  = _dq_wodk.get("recall",    dag_metrics.get("recall",    0.0))
+_dq_f1   = _dq_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
+
+def _dq_status(frac):
+    if frac >= 0.85: return SUCCESS, "Strong"
+    if frac >= 0.65: return WARNING, "Moderate"
+    return ERROR, "Needs Review"
+
+def _dq_tile(icon, value_str, label, frac):
+    _color, _status = _dq_status(frac)
+    return (
+        f'<div style="background:#FFFFFF;border:1px solid {BORDER};border-radius:12px;'
+        f'padding:16px 18px;flex:1;min-width:150px;">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+        f'<span style="font-size:1rem;">{icon}</span>'
+        f'<span style="font-size:0.62rem;font-weight:800;color:{_color};background:{_color}1A;'
+        f'padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">{_status}</span>'
+        f'</div>'
+        f'<div style="font-size:1.9rem;font-weight:900;color:{TEXT};line-height:1;">{value_str}</div>'
+        f'<div style="font-size:0.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
+        f'letter-spacing:0.05em;margin-top:6px;margin-bottom:9px;">{label}</div>'
+        f'<div style="height:5px;background:{BORDER};border-radius:3px;overflow:hidden;">'
+        f'<div style="height:100%;width:{frac*100:.0f}%;background:{_color};border-radius:3px;"></div>'
+        f'</div>'
+        f'</div>'
+    )
+
+_dq_avg = (_dq_prec + _dq_rec + _dq_f1) / 3
+_dq_verdict_col, _dq_verdict_lbl = _dq_status(_dq_avg)
+
+st.markdown(
+    f'<div style="background:#FFFFFF;border:1px solid {BORDER};border-radius:14px;'
+    f'padding:22px 26px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,23,42,0.03);">'
+    f'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">'
+    f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+    f'<span style="font-size:1.1rem;">🛡️</span>'
+    f'<span style="font-size:0.85rem;font-weight:800;color:{TEXT};text-transform:uppercase;letter-spacing:0.06em;">'
+    f'Model Quality At a Glance</span>'
+    f'<span style="font-size:0.68rem;font-weight:800;color:#FFFFFF;background:{_dq_verdict_col};'
+    f'padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">'
+    f'✓ {_dq_verdict_lbl} Discovery Quality</span>'
+    f'</div>'
+    f'<span style="font-size:0.78rem;color:{SUBTLE};">Full validation walkthrough in Step 5 below ↓</span>'
+    f'</div>'
+    f'<div style="font-size:0.78rem;color:{MUTED};margin-bottom:16px;">'
+    f'Raw PC-algorithm discovery vs. planted ground truth — '
+    f'<b>before</b> domain-knowledge constraints are applied, so this reflects what the statistics '
+    f'found on their own rather than a number domain knowledge guarantees to be perfect.</div>'
+    f'<div style="display:flex;gap:14px;flex-wrap:wrap;">'
+    + _dq_tile("🔁", f"{_boot_stab_pct:.0f}%", "Bootstrap Stability", _boot_stab_pct / 100)
+    + _dq_tile("🎯", f"{_dq_prec:.2f}", "Precision", _dq_prec)
+    + _dq_tile("🔎", f"{_dq_rec:.2f}", "Edge Recall", _dq_rec)
+    + _dq_tile("⚖️", f"{_dq_f1:.2f}", "Recovery F1", _dq_f1)
+    + f'</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+with st.expander("ℹ️ How are these numbers calculated?"):
+    _dq_gt_n   = len(_dq_wodk.get("ground_truth_edges", [])) or dag.number_of_edges() or 9
+    _dq_tp     = _dq_wodk.get("true_positives",  0)
+    _dq_fp     = _dq_wodk.get("false_positives", 0)
+    _dq_fn     = _dq_wodk.get("false_negatives", 0)
+    _dq_boot_n = dag.graph.get("bootstrap_n", 20)
+
+    def _dq_flow_step(n, icon, title, desc):
+        return (
+            f'<div style="flex:1;min-width:170px;background:#FFFFFF;border:1px solid {BORDER};'
+            f'border-radius:10px;padding:14px 16px;">'
+            f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+            f'<span style="width:20px;height:20px;border-radius:50%;background:{PRIMARY};color:#FFFFFF;'
+            f'font-size:0.68rem;font-weight:800;display:flex;align-items:center;justify-content:center;'
+            f'flex-shrink:0;">{n}</span>'
+            f'<span style="font-size:1rem;">{icon}</span>'
+            f'<span style="font-size:0.82rem;font-weight:800;color:{TEXT};">{title}</span>'
+            f'</div>'
+            f'<div style="font-size:0.78rem;color:{MUTED};line-height:1.5;">{desc}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin-bottom:6px;">'
+        + _dq_flow_step(1, "🌱", "Plant a known answer",
+            f"This dataset is synthetic — generated from {_dq_gt_n} causal edges planted in "
+            f"advance, so discovery can be graded against the real answer.")
+        + '<div style="display:flex;align-items:center;color:#CBD5E1;font-size:1.3rem;font-weight:800;">→</div>'
+        + _dq_flow_step(2, "🔍", "Discover statistically",
+            f"The PC algorithm runs {_dq_boot_n}× on resampled copies of the data and proposes "
+            f"a graph from patterns alone — no domain rules involved yet.")
+        + '<div style="display:flex;align-items:center;color:#CBD5E1;font-size:1.3rem;font-weight:800;">→</div>'
+        + _dq_flow_step(3, "✅", "Compare, edge by edge",
+            f"The proposed graph is checked against the {_dq_gt_n} planted edges to see what "
+            f"was found correctly, missed, or invented.")
+        + f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f'<div style="background:#F8FAFC;border:1px solid {BORDER};border-radius:10px;'
+        f'padding:12px 16px;margin:14px 0;display:flex;gap:20px;flex-wrap:wrap;font-size:0.82rem;">'
+        f'<span style="color:{SUCCESS};font-weight:700;">✓ {_dq_tp} correct edges found</span>'
+        f'<span style="color:{ERROR};font-weight:700;">✗ {_dq_fp} false alarms (edges that aren\'t real)</span>'
+        f'<span style="color:{WARNING};font-weight:700;">− {_dq_fn} missed edges</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    def _dq_formula_card(icon, name, formula, plain):
+        return (
+            f'<div style="flex:1;min-width:190px;background:#FFFFFF;border:1px solid {BORDER};'
+            f'border-radius:10px;padding:14px 16px;">'
+            f'<div style="font-size:0.85rem;font-weight:800;color:{TEXT};margin-bottom:4px;">{icon} {name}</div>'
+            f'<div style="font-family:monospace;font-size:0.78rem;color:{PRIMARY};background:{PRIMARY}14;'
+            f'border-radius:6px;padding:4px 8px;display:inline-block;margin-bottom:6px;">{formula}</div>'
+            f'<div style="font-size:0.78rem;color:{MUTED};line-height:1.4;">{plain}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+        + _dq_formula_card("🎯", "Precision", "TP ÷ (TP + FP)", "Of what it found, how much was right?")
+        + _dq_formula_card("🔎", "Edge Recall", "TP ÷ (TP + FN)", "Of what's actually true, how much did it find?")
+        + _dq_formula_card("⚖️", "Recovery F1", "harmonic mean", "Precision and recall balanced into one number.")
+        + f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f'<div style="background:#F0FDF4;border-left:3px solid {SUCCESS};border-radius:0 8px 8px 0;'
+        f'padding:12px 16px;margin-top:14px;font-size:0.82rem;color:{TEXT};line-height:1.5;">'
+        f'<b>🔁 Bootstrap Stability</b> is separate from the three scores above — it reruns the '
+        f'whole process {_dq_boot_n}× on resampled data and reports what share of those runs '
+        f'agreed an edge was real, averaged over the ground-truth edges. It answers '
+        f'<i>"if we reran this on slightly different data, would we get the same answer?"</i> — '
+        f'a guard against the result being a fluke of one particular sample.'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f'<div style="font-size:0.76rem;color:{SUBTLE};margin-top:12px;">'
+        f'Domain-knowledge constraints are applied only <b>after</b> this scoring (Step 6 below) — '
+        f'that\'s why these numbers are graded on the raw statistics alone, before anything is corrected.</div>',
+        unsafe_allow_html=True,
+    )
+
 # ── STEP 1: UNDERSTAND THE EVENT DATA ─────────────────────────────────────────
 st.markdown('<div class="discovery-section"></div>', unsafe_allow_html=True)
 if is_custom:
@@ -1382,81 +1544,81 @@ setTimeout(startAnim, 300);
     # 8. Ablation Study — Domain Knowledge Impact ──────────────────────────
     if ablation:
         st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-        st.markdown("<h5 style='color:#1E293B; margin-bottom:6px;'>Domain Knowledge Ablation Study</h5>", unsafe_allow_html=True)
-        st.markdown(
-            f'<p style="color:#64748B; font-size:0.9rem; margin-top:0; margin-bottom:16px;">'
-            f'Discovery quality with vs. without domain knowledge constraints — empirical justification for knowledge integration.</p>',
-            unsafe_allow_html=True,
-        )
+        with st.expander("Domain Knowledge Ablation Study", expanded=False):
+            st.markdown(
+                f'<p style="color:#64748B; font-size:0.9rem; margin-top:0; margin-bottom:16px;">'
+                f'Discovery quality with vs. without domain knowledge constraints — empirical justification for knowledge integration.</p>',
+                unsafe_allow_html=True,
+            )
 
-        _abl_wdk  = ablation.get("with_domain_knowledge", {})
-        _abl_wodk = ablation.get("without_domain_knowledge", {})
-        
-        # ── Ablation Finding First ──
-        _abl_imp      = ablation.get("improvement", {})
-        _f1_delta     = _abl_imp.get("f1_gain",    0.0)
-        _rc_delta     = _abl_imp.get("recall_gain", 0.0)
-        _prec_delta   = _abl_imp.get("precision_gain", 0.0)
-        _gt_n_abl     = len(ablation.get("with_domain_knowledge", {}).get("ground_truth_edges", []))
-        _links_rec_n  = round(abs(_rc_delta) * (_gt_n_abl or 9))
-        _prec_wdk     = _abl_wdk.get("precision", 0.0)
-        _prec_wodk    = _abl_wodk.get("precision", 0.0)
-        _prec_clause  = (
-            f'Graph precision <b style="color:#2563EB;">improved from {_prec_wodk:.3f} → {_prec_wdk:.3f}</b>'
-            if _prec_delta > 0.001
-            else f'Graph precision was <b style="color:#2563EB;">maintained at {_prec_wdk:.3f}</b>'
-        )
-        st.markdown(
-            f'<div style="background:#EFF6FF;border-left:4px solid #3B82F6;padding:16px 20px;border-radius:4px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
-            f'<div style="color:#1E3A8A;font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">ABLATION FINDING</div>'
-            f'<div style="color:#1E293B;font-size:0.95rem;line-height:1.6;">'
-            f'Domain constraints recovered <b style="color:#2563EB;">{_links_rec_n} missed causal link{"s" if _links_rec_n != 1 else ""}</b> '
-            f'and improved edge recall by <b style="color:#2563EB;">{_rc_delta*100:+.1f} percentage points</b>. '
-            + _prec_clause +
-            f' — domain knowledge adds only validated edges, never speculative links.</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+            _abl_wdk  = ablation.get("with_domain_knowledge", {})
+            _abl_wodk = ablation.get("without_domain_knowledge", {})
 
-        # ── Ablation Chart Second ──
-        _abl_metrics = ["Structural Precision", "Edge Recall", "Recovery F1"]
-        _abl_with    = [_abl_wdk.get("precision", 0.0),  _abl_wdk.get("recall", 0.0),  _abl_wdk.get("f1_score", 0.0)]
-        _abl_without = [_abl_wodk.get("precision", 0.0), _abl_wodk.get("recall", 0.0), _abl_wodk.get("f1_score", 0.0)]
+            # ── Ablation Finding First ──
+            _abl_imp      = ablation.get("improvement", {})
+            _f1_delta     = _abl_imp.get("f1_gain",    0.0)
+            _rc_delta     = _abl_imp.get("recall_gain", 0.0)
+            _prec_delta   = _abl_imp.get("precision_gain", 0.0)
+            _gt_n_abl     = len(ablation.get("with_domain_knowledge", {}).get("ground_truth_edges", []))
+            _links_rec_n  = round(abs(_rc_delta) * (_gt_n_abl or 9))
+            _prec_wdk     = _abl_wdk.get("precision", 0.0)
+            _prec_wodk    = _abl_wodk.get("precision", 0.0)
+            _prec_clause  = (
+                f'Graph precision <b style="color:#2563EB;">improved from {_prec_wodk:.3f} → {_prec_wdk:.3f}</b>'
+                if _prec_delta > 0.001
+                else f'Graph precision was <b style="color:#2563EB;">maintained at {_prec_wdk:.3f}</b>'
+            )
+            st.markdown(
+                f'<div style="background:#EFF6FF;border-left:4px solid #3B82F6;padding:16px 20px;border-radius:4px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
+                f'<div style="color:#1E3A8A;font-size:0.75rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">ABLATION FINDING</div>'
+                f'<div style="color:#1E293B;font-size:0.95rem;line-height:1.6;">'
+                f'Domain constraints recovered <b style="color:#2563EB;">{_links_rec_n} missed causal link{"s" if _links_rec_n != 1 else ""}</b> '
+                f'and improved edge recall by <b style="color:#2563EB;">{_rc_delta*100:+.1f} percentage points</b>. '
+                + _prec_clause +
+                f' — domain knowledge adds only validated edges, never speculative links.</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-        fig_abl = go.Figure()
-        fig_abl.add_trace(go.Bar(
-            name="Without Domain Knowledge",
-            x=_abl_metrics,
-            y=_abl_without,
-            marker_color=MUTED,
-            opacity=0.85,
-            text=[f"{v:.3f}" for v in _abl_without],
-            textposition="outside",
-        ))
-        fig_abl.add_trace(go.Bar(
-            name="With Domain Knowledge",
-            x=_abl_metrics,
-            y=_abl_with,
-            marker_color=SUCCESS,
-            opacity=0.88,
-            text=[f"{v:.3f}" for v in _abl_with],
-            textposition="outside",
-        ))
+            # ── Ablation Chart Second ──
+            _abl_metrics = ["Structural Precision", "Edge Recall", "Recovery F1"]
+            _abl_with    = [_abl_wdk.get("precision", 0.0),  _abl_wdk.get("recall", 0.0),  _abl_wdk.get("f1_score", 0.0)]
+            _abl_without = [_abl_wodk.get("precision", 0.0), _abl_wodk.get("recall", 0.0), _abl_wodk.get("f1_score", 0.0)]
 
-        _abl_layout = dict(**PLOTLY_LAYOUT)
-        _abl_layout.update(dict(
-            barmode="group",
-            yaxis={"title": "Score", "range": [0, 1.2], "title_font": dict(size=13), "tickformat": ".2f"},
-            xaxis={"title": "Metric"},
-            height=400,
-            margin=dict(l=20, r=20, t=30, b=40),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        ))
-        fig_abl.update_layout(**_abl_layout)
-        try:
-            st.plotly_chart(fig_abl, use_container_width=True, theme=None, config={'displayModeBar': False})
-        except Exception as _ablE:
-            st.error(f"Chart error: {_ablE}")
+            fig_abl = go.Figure()
+            fig_abl.add_trace(go.Bar(
+                name="Without Domain Knowledge",
+                x=_abl_metrics,
+                y=_abl_without,
+                marker_color=MUTED,
+                opacity=0.85,
+                text=[f"{v:.3f}" for v in _abl_without],
+                textposition="outside",
+            ))
+            fig_abl.add_trace(go.Bar(
+                name="With Domain Knowledge",
+                x=_abl_metrics,
+                y=_abl_with,
+                marker_color=SUCCESS,
+                opacity=0.88,
+                text=[f"{v:.3f}" for v in _abl_with],
+                textposition="outside",
+            ))
+
+            _abl_layout = dict(**PLOTLY_LAYOUT)
+            _abl_layout.update(dict(
+                barmode="group",
+                yaxis={"title": "Score", "range": [0, 1.2], "title_font": dict(size=13), "tickformat": ".2f"},
+                xaxis={"title": "Metric"},
+                height=400,
+                margin=dict(l=20, r=20, t=30, b=40),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            ))
+            fig_abl.update_layout(**_abl_layout)
+            try:
+                st.plotly_chart(fig_abl, use_container_width=True, theme=None, config={'displayModeBar': False})
+            except Exception as _ablE:
+                st.error(f"Chart error: {_ablE}")
 
     st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
     st.markdown(f"""

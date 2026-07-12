@@ -36,8 +36,6 @@ _HC_DEFAULTS = {
 
 if _sim_key not in st.session_state:
     st.session_state[_sim_key] = dict(_MFG_DEFAULTS if _is_mfg_sim else _HC_DEFAULTS)
-if "sim_scenarios" not in st.session_state:
-    st.session_state["sim_scenarios"] = []
 
 # ── Causal engine ──────────────────────────────────────────────────────────
 def _live_coef(parent, child, default):
@@ -194,6 +192,49 @@ def _compute_hc(levers):
             "Specialist Assigned": (BL_SPEC * 100, spec_prob * 100,           "%"),
         },
     }
+
+# ── Recommended Action Plan — grid-search the lever space for the
+# cheapest combination that reaches a target improvement, using the same
+# _compute_mfg/_compute_hc engine that drives the rest of the simulator
+# (not a separate model, so the recommendation and the live outcome
+# numbers can never disagree). Small discrete grids keep this to a few
+# thousand pure-arithmetic evaluations — fast enough to run on every
+# rerun without caching.
+_MFG_GRID = {
+    "supplier_reliability_pct": [40, 60, 80, 100],
+    "machine_capacity_expanded": [False, True],
+    "approval_automation": [False, True],
+    "additional_workforce": [0, 5, 10, 15, 20],
+    "material_lead_time_mode": ["Current", "Reduced (-20%)", "Optimised (-40%)"],
+    "carrier_express_pct": [15, 35, 55, 75, 95],
+    "export_flag_reduction": [False, True],
+    "order_batching": [False, True],
+}
+_HC_GRID = {
+    "specialist_allocation_pct": [45, 65, 85, 100],
+    "bed_capacity_expanded": [False, True],
+    "triage_automation": [False, True],
+    "additional_nursing_staff": [0, 5, 10, 15, 20],
+    "fast_track_eligibility_pct": [20, 40, 60, 80, 100],
+    "diagnostic_speed_mode": ["Standard", "Fast (-20%)", "Express (-35%)"],
+}
+
+def _recommend_plan(target_pct, defaults, grid, compute_fn):
+    import itertools
+    _keys = list(grid.keys())
+    _cheapest, _best_any = None, None
+    for _combo in itertools.product(*[grid[k] for k in _keys]):
+        _levers = dict(defaults)
+        _levers.update(dict(zip(_keys, _combo)))
+        _r = compute_fn(_levers)
+        if _best_any is None or _r["improvement_pct"] > _best_any[1]["improvement_pct"]:
+            _best_any = (_levers, _r)
+        if _r["improvement_pct"] >= target_pct:
+            if _cheapest is None or _r["impl_cost"] < _cheapest[1]["impl_cost"]:
+                _cheapest = (_levers, _r)
+    if _cheapest is not None:
+        return _cheapest[0], _cheapest[1], True
+    return _best_any[0], _best_any[1], False
 
 # ── Header banner ──────────────────────────────────────────────────────────
 st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
@@ -565,109 +606,114 @@ with _biscol:
 st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 _botl, _botr = st.columns([1, 1])
 
+if "sim_target_pct" not in st.session_state:
+    st.session_state["sim_target_pct"] = 20
+
 with _botl:
     with st.container(border=True):
-        _sim_section_header("#FEF3C7", "📋", "Scenario Comparison")
-
-        _sc_in, _sc_sv = st.columns([3, 1])
-        with _sc_in:
-            _save_name = st.text_input(
-                "Scenario name", placeholder="e.g. Full Automation + Express",
-                key="sim_save_name_input", label_visibility="collapsed",
-            )
-        with _sc_sv:
-            if st.button("💾 Save Scenario", use_container_width=True, key="sim_save_btn"):
-                if _save_name and len(st.session_state["sim_scenarios"]) < 4:
-                    st.session_state["sim_scenarios"].append({
-                        "name":   _save_name,
-                        "levers": dict(_lv),
-                        "result": {k: v for k, v in _res.items()
-                                   if k not in ("mediators", "deltas")},
-                    })
-                    st.rerun()
-                elif len(st.session_state["sim_scenarios"]) >= 4:
-                    st.warning("Max 4 scenarios — clear some first.")
+        _sim_section_header("#FEF3C7", "🎯", "Recommended Action Plan")
 
         st.markdown(
-            f'<div style="font-size:0.75rem;color:{MUTED};margin-bottom:10px;">'
-            f'Save up to 4 named scenarios to compare them side-by-side.</div>',
+            f'<div style="font-size:0.75rem;color:{MUTED};margin-bottom:6px;">'
+            f'Cheapest lever combination that reaches your target reduction — searched '
+            f'across the same causal engine driving the numbers above, so it never disagrees '
+            f'with what you see there.</div>',
             unsafe_allow_html=True,
         )
-
-        _scenarios = st.session_state["sim_scenarios"]
-        st.markdown(
-            f'<div style="font-size:0.68rem;color:{MUTED};font-weight:700;'
-            f'text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">'
-            f'Saved Scenarios ({len(_scenarios)}/4)</div>',
-            unsafe_allow_html=True,
+        _target_pct = st.slider(
+            "Target delay reduction (%)", 5, 50,
+            st.session_state["sim_target_pct"], 5, key="sim_target_slider",
         )
+        st.session_state["sim_target_pct"] = _target_pct
 
-        # Baseline row is always shown as the reference point, styled the
-        # same as saved scenarios but tagged ACTIVE instead of an impact tier.
-        def _sim_impact_pill(pct):
-            if pct > 25:   return "#059669", "#ECFDF5", "HIGH IMPACT"
-            if pct > 10:   return "#D97706", "#FFFBEB", "MODERATE IMPACT"
-            if pct > 0:    return "#EA580C", "#FFF7ED", "LOW IMPACT"
-            return "#DC2626", "#FEF2F2", "NO IMPROVEMENT"
+        _plan_defaults = _MFG_DEFAULTS if _is_mfg_sim else _HC_DEFAULTS
+        _plan_grid     = _MFG_GRID if _is_mfg_sim else _HC_GRID
+        _plan_compute  = _compute_mfg if _is_mfg_sim else _compute_hc
+        _plan_levers, _plan_res, _plan_hit = _recommend_plan(
+            _target_pct, _plan_defaults, _plan_grid, _plan_compute)
 
-        _row_html = (
-            f'<div style="display:flex;align-items:center;justify-content:space-between;'
-            f'padding:9px 4px;border-bottom:1px solid {BORDER};">'
-            f'<span style="font-size:0.82rem;color:{TEXT};font-weight:500;">Baseline (Current)</span>'
-            f'<div style="display:flex;align-items:center;gap:10px;">'
-            f'<span style="background:#EEF2FF;color:#4F46E5;font-size:0.65rem;font-weight:700;'
-            f'padding:3px 9px;border-radius:8px;">ACTIVE</span>'
-            f'<span style="font-size:0.85rem;font-weight:700;color:{TEXT};min-width:56px;text-align:right;">'
-            f'{_bl:.1f} days</span></div></div>'
-        )
-        for _s in _scenarios:
-            _r = _s["result"]
-            _pcol, _pbg, _plbl = _sim_impact_pill(_r["improvement_pct"])
-            _row_html += (
-                f'<div style="display:flex;align-items:center;justify-content:space-between;'
-                f'padding:9px 4px;border-bottom:1px solid {BORDER};">'
-                f'<span style="font-size:0.82rem;color:{TEXT};font-weight:500;">{_s["name"]}</span>'
-                f'<div style="display:flex;align-items:center;gap:10px;">'
-                f'<span style="background:{_pbg};color:{_pcol};font-size:0.65rem;font-weight:700;'
-                f'padding:3px 9px;border-radius:8px;">{_plbl}</span>'
-                f'<span style="font-size:0.85rem;font-weight:700;color:{TEXT};min-width:56px;text-align:right;">'
-                f'{_r["predicted"]:.1f} days</span></div></div>'
+        if _plan_hit:
+            st.markdown(
+                f'<div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;'
+                f'padding:12px 14px;margin:8px 0;">'
+                f'<div style="font-size:0.78rem;color:#059669;font-weight:800;text-transform:uppercase;'
+                f'letter-spacing:0.04em;margin-bottom:4px;">Target reachable</div>'
+                f'<div style="font-size:0.85rem;color:{TEXT};">Predicted {_sim_out_lbl.lower()}: '
+                f'<b>{_plan_res["predicted"]:.1f} days</b> '
+                f'(<span style="color:#059669;font-weight:700;">-{_plan_res["improvement_pct"]:.0f}%</span> '
+                f'vs {_plan_res["baseline"]:.1f}d baseline)</div>'
+                f'</div>',
+                unsafe_allow_html=True,
             )
-        st.markdown(_row_html, unsafe_allow_html=True)
+        else:
+            st.markdown(
+                f'<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;'
+                f'padding:12px 14px;margin:8px 0;">'
+                f'<div style="font-size:0.78rem;color:#D97706;font-weight:800;text-transform:uppercase;'
+                f'letter-spacing:0.04em;margin-bottom:4px;">Target not reachable with these levers</div>'
+                f'<div style="font-size:0.85rem;color:{TEXT};">Best achievable: '
+                f'<b>{_plan_res["predicted"]:.1f} days</b> '
+                f'(<span style="color:#D97706;font-weight:700;">-{_plan_res["improvement_pct"]:.0f}%</span> '
+                f'vs {_plan_res["baseline"]:.1f}d baseline) — shown below anyway.</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-        if st.session_state["sim_scenarios"]:
-            st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-            if st.button("🗑️ Clear Saved Scenarios", use_container_width=True, key="sim_clear_btn"):
-                st.session_state["sim_scenarios"] = []
-                st.rerun()
+        _plan_changes = [(k, _plan_defaults[k], v) for k, v in _plan_levers.items()
+                          if v != _plan_defaults[k]]
+        if _plan_changes:
+            _plan_html = (
+                f'<div style="background:#F8FAFC;border:1px solid {BORDER};border-radius:8px;'
+                f'padding:10px 12px;margin-bottom:10px;">'
+                f'<div style="font-size:0.7rem;font-weight:700;color:{MUTED};'
+                f'text-transform:uppercase;margin-bottom:5px;">Recommended Levers</div>'
+            )
+            for _k, _bv, _cv in _plan_changes:
+                _klbl = _k.replace("_", " ").title()
+                _cstr = (f"{_cv}%" if isinstance(_cv, int) and "pct" in _k
+                         else ("ON" if _cv is True else ("OFF" if _cv is False else str(_cv))))
+                _plan_html += (
+                    f'<div style="font-size:0.78rem;color:#334155;margin-bottom:1px;">'
+                    f'&#9679; {_klbl}: <b>{_cstr}</b></div>'
+                )
+            _plan_html += "</div>"
+            st.markdown(_plan_html, unsafe_allow_html=True)
+        else:
+            st.markdown(
+                f'<div style="color:{MUTED};font-size:0.8rem;margin-bottom:10px;">'
+                f'Baseline already meets this target.</div>',
+                unsafe_allow_html=True,
+            )
 
-        # Always render the comparison chart, even with just the Baseline
-        # bar when no scenarios are saved yet — a real, meaningful chart
-        # rather than nothing, so this card isn't left far shorter than its
-        # "Live Causal Graph" neighbor (Streamlit's row stretches both
-        # columns to the same height regardless, so an empty card here
-        # otherwise reads as a chunk of dead blank space, not a deliberate
-        # layout choice).
-        _sc_names  = ["Baseline"] + [s["name"] for s in _scenarios]
-        _sc_delays = [_bl]        + [s["result"]["predicted"] for s in _scenarios]
-        _sc_colors = [MUTED]      + [
-            (SUCCESS if s["result"]["improvement_pct"] > 10 else WARNING)
-            for s in _scenarios
-        ]
-        _fig_sc = go.Figure(go.Bar(
-            x=_sc_names, y=_sc_delays,
-            marker_color=_sc_colors,
-            text=[f"{v:.1f}d" for v in _sc_delays],
+        _pk1, _pk2, _pk3 = st.columns(3)
+        with _pk1:
+            st.metric("Impl. Cost", f"${_plan_res['impl_cost']:,.0f}")
+        with _pk2:
+            st.metric("Annual Savings", f"${_plan_res['annual_saving']:,.0f}")
+        with _pk3:
+            _plan_roi = _plan_res["roi_months"]
+            st.metric("Payback", "—" if _plan_res["annual_saving"] <= 0
+                       else (f"{_plan_roi:.1f} mo" if _plan_roi < 60 else ">5 yr"))
+
+        if st.button("✅ Apply This Plan to Levers", use_container_width=True, key="sim_apply_plan_btn"):
+            st.session_state[_sim_key] = dict(_plan_levers)
+            st.rerun()
+
+        _plan_fig = go.Figure(go.Bar(
+            x=["Baseline", "Recommended Plan"],
+            y=[_plan_res["baseline"], _plan_res["predicted"]],
+            marker_color=[MUTED, SUCCESS if _plan_hit else WARNING],
+            text=[f"{_plan_res['baseline']:.1f}d", f"{_plan_res['predicted']:.1f}d"],
             textposition="outside",
         ))
-        _scl = dict(**PLOTLY_LAYOUT)
-        _scl.update(dict(
-            height=260, showlegend=False,
+        _plan_fig_layout = dict(**PLOTLY_LAYOUT)
+        _plan_fig_layout.update(dict(
+            height=200, showlegend=False,
             margin=dict(l=10, r=10, t=20, b=20),
             yaxis={"title": f"{_sim_out_lbl} (days)", "gridcolor": BORDER},
         ))
-        _fig_sc.update_layout(**_scl)
-        st.plotly_chart(_fig_sc, use_container_width=True, theme=None,
+        _plan_fig.update_layout(**_plan_fig_layout)
+        st.plotly_chart(_plan_fig, use_container_width=True, theme=None,
                         config={"displayModeBar": False})
 
 with _botr:
@@ -685,6 +731,44 @@ with _botr:
                 unsafe_allow_html=True,
             )
 
+        # ── Lever "strength" — how far a lever sits from its baseline,
+        # normalized to [0, 1] by its own plausible range. Drives edge
+        # thickness/color/glow below so the graph reads impact magnitude,
+        # not just an on/off toggle.
+        def _lstr(key):
+            _val, _def = _lv[key], _defaults[key]
+            if isinstance(_val, bool):
+                return 1.0 if _val != _def else 0.0
+            if isinstance(_val, (int, float)):
+                if "pct" in key:
+                    _rng = 100.0
+                elif key in ("additional_workforce", "additional_nursing_staff"):
+                    _rng = 20.0
+                else:
+                    _rng = max(abs(_val), abs(_def), 1.0)
+                return min(1.0, abs(_val - _def) / _rng)
+            _cat_opts = {
+                "material_lead_time_mode": ["Current", "Reduced (-20%)", "Optimised (-40%)"],
+                "diagnostic_speed_mode":    ["Standard", "Fast (-20%)", "Express (-35%)"],
+            }
+            if key in _cat_opts:
+                _opts = _cat_opts[key]
+                return abs(_opts.index(_val) - _opts.index(_def)) / (len(_opts) - 1)
+            return 0.0
+
+        # Human-readable "what's driving this edge" line for hover tooltips.
+        def _lever_desc(key, label):
+            _val, _def = _lv[key], _defaults[key]
+            if _val == _def:
+                return None
+            if isinstance(_val, bool):
+                _vs = "ON" if _val else "OFF"
+            elif isinstance(_val, (int, float)) and "pct" in key:
+                _vs = f"{_val}%"
+            else:
+                _vs = str(_val)
+            return f"{label}: {_vs}"
+
         if _is_mfg_sim:
             _dag_nodes = [
                 {"id": "order_complexity",      "x": 0.0, "y": 3.0, "role": "Confounder"},
@@ -696,21 +780,40 @@ with _botr:
                 {"id": "carrier_express",       "x": 5.0, "y": 0.0, "role": "Treatment"},
                 {"id": "shipment_delay",        "x": 7.5, "y": 2.0, "role": "Outcome"},
             ]
-            _dag_edges = [
-                ("supplier_a",         "material_lead_time",
-                 _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
-                ("order_complexity",   "machine_queue",  False),
-                ("machine_queue",      "approval_duration",
-                 _lv["machine_capacity_expanded"] or _lv["additional_workforce"] > 0),
-                ("export_flag",        "approval_duration",  _lv["export_flag_reduction"]),
-                ("material_lead_time", "shipment_delay",
-                 _lv["material_lead_time_mode"] != "Current" or
-                 _lv["supplier_reliability_pct"] != _MFG_DEFAULTS["supplier_reliability_pct"]),
-                ("approval_duration",  "shipment_delay",
-                 _lv["approval_automation"] or _lv["export_flag_reduction"]),
-                ("carrier_express",    "shipment_delay",
-                 _lv["carrier_express_pct"] != _MFG_DEFAULTS["carrier_express_pct"]),
-                ("order_complexity",   "shipment_delay",  False),
+            _node_val = {
+                "material_lead_time": _res["mediators"]["Material Lead Time"],
+                "machine_queue":      _res["mediators"]["Machine Queue Length"],
+                "approval_duration":  _res["mediators"]["Approval Duration"],
+                "shipment_delay":     (_bl, _pred, "days"),
+            }
+            # Nodes with no tracked SCM value of their own (pure lever
+            # settings, not a mediator the model computes) fall back to how
+            # far their driving lever sits from baseline.
+            _root_lever = {
+                "supplier_a":      "supplier_reliability_pct",
+                "export_flag":     "export_flag_reduction",
+                "carrier_express": "carrier_express_pct",
+            }
+            _drivers = {
+                "supplier_a":      [_lever_desc("supplier_reliability_pct", "Supplier B Allocation")],
+                "export_flag":     [_lever_desc("export_flag_reduction", "Export Docs Streamlined")],
+                "carrier_express": [_lever_desc("carrier_express_pct", "Express Carrier Usage")],
+                "machine_queue":   [_lever_desc("machine_capacity_expanded", "Machine Capacity Expanded"),
+                                     _lever_desc("additional_workforce", "Additional Workforce")],
+                "approval_duration": [_lever_desc("approval_automation", "Approval Automation"),
+                                       _lever_desc("export_flag_reduction", "Export Docs Streamlined")],
+                "material_lead_time": [_lever_desc("material_lead_time_mode", "Lead Time Strategy"),
+                                        _lever_desc("supplier_reliability_pct", "Supplier B Allocation")],
+            }
+            _dag_edge_pairs = [
+                ("supplier_a",         "material_lead_time"),
+                ("order_complexity",   "machine_queue"),
+                ("machine_queue",      "approval_duration"),
+                ("export_flag",        "approval_duration"),
+                ("material_lead_time", "shipment_delay"),
+                ("approval_duration",  "shipment_delay"),
+                ("carrier_express",    "shipment_delay"),
+                ("order_complexity",   "shipment_delay"),
             ]
         else:
             _dag_nodes = [
@@ -720,13 +823,42 @@ with _botr:
                 {"id": "triage_score",           "x": 1.5, "y": 0.0, "role": "Mediator"},
                 {"id": "treatment_duration",     "x": 6.0, "y": 2.0, "role": "Outcome"},
             ]
-            _dag_edges = [
-                ("patient_complexity",     "treatment_duration",    False),
-                ("specialist_requirement", "treatment_duration",
-                 _lv["specialist_allocation_pct"] != _HC_DEFAULTS["specialist_allocation_pct"]),
-                ("bed_occupancy",          "treatment_duration",    _lv["bed_capacity_expanded"]),
-                ("triage_score",           "specialist_requirement", _lv["triage_automation"]),
+            _node_val = {
+                "specialist_requirement": _res["mediators"]["Specialist Assigned"],
+                "bed_occupancy":          _res["mediators"]["Bed Occupancy"],
+                "treatment_duration":     (_bl, _pred, "days"),
+            }
+            _root_lever = {
+                "triage_score": "triage_automation",
+            }
+            _drivers = {
+                "specialist_requirement": [_lever_desc("specialist_allocation_pct", "Specialist Allocation")],
+                "bed_occupancy":          [_lever_desc("bed_capacity_expanded", "Bed Capacity Expanded"),
+                                            _lever_desc("additional_nursing_staff", "Additional Nursing Staff")],
+                "triage_score":           [_lever_desc("triage_automation", "Triage Automation")],
+            }
+            _dag_edge_pairs = [
+                ("patient_complexity",     "treatment_duration"),
+                ("specialist_requirement", "treatment_duration"),
+                ("bed_occupancy",          "treatment_duration"),
+                ("triage_score",           "specialist_requirement"),
             ]
+
+        def _node_strength(nid):
+            if nid in _node_val:
+                _bv, _cv, _unit = _node_val[nid]
+                _rng = max(abs(_bv), 0.5)
+                return min(1.0, abs(_cv - _bv) / _rng)
+            if nid in _root_lever:
+                return _lstr(_root_lever[nid])
+            return 0.0  # pure exogenous confounder — never intervened on here
+
+        # Edge strength = how much the *source* node actually moved, so a
+        # change made two hops upstream (e.g. more workforce → shorter
+        # machine queue → shorter approval duration) correctly lights up
+        # every downstream edge, not just the one tied to the lever you
+        # touched directly.
+        _dag_edges = [(_src, _dst, _node_strength(_src)) for _src, _dst in _dag_edge_pairs]
 
         _role_colors = {
             "Confounder": WARNING, "Treatment": PRIMARY, "Mediator": INFO, "Outcome": ERROR,
@@ -741,24 +873,33 @@ with _botr:
         _nys = {n["id"]: n["y"] for n in _dag_nodes}
 
         # Nodes touched by at least one currently-active edge get a soft
-        # halo — real derived state (from the same _active flags driving
-        # edge color), not decoration, so it's obvious at a glance which
-        # part of the graph your current lever changes are running through.
-        _active_nodes = set()
-        for _src, _dst, _active in _dag_edges:
-            if _active:
-                _active_nodes.add(_src)
-                _active_nodes.add(_dst)
+        # halo — real derived state (driven by the same strength values as
+        # edge color/width), scaled by the strongest edge touching that
+        # node, so it's obvious at a glance which part of the graph your
+        # current lever changes are running through and how hard.
+        _active_nodes = {}
+        for _src, _dst, _strength in _dag_edges:
+            if _strength > 0.001:
+                _active_nodes[_src] = max(_active_nodes.get(_src, 0.0), _strength)
+                _active_nodes[_dst] = max(_active_nodes.get(_dst, 0.0), _strength)
+
+        def _lerp_color(c1, c2, t):
+            t = max(0.0, min(1.0, t))
+            r1, g1, b1 = int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16)
+            r2, g2, b2 = int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16)
+            return f"#{round(r1+(r2-r1)*t):02X}{round(g1+(g2-g1)*t):02X}{round(b1+(b2-b1)*t):02X}"
 
         import math
         _fig_dag = go.Figure()
-        for _src, _dst, _active in _dag_edges:
+        for _src, _dst, _strength in _dag_edges:
+            _active = _strength > 0.001
             _x0, _y0, _x1, _y1 = _nxs[_src], _nys[_src], _nxs[_dst], _nys[_dst]
+            _ecol = _lerp_color("#D7DEE8", PRIMARY, _strength)
+            _ewid = 1.2 + _strength * 4.5
             _fig_dag.add_trace(go.Scatter(
                 x=[_x0, _x1, None], y=[_y0, _y1, None],
                 mode="lines",
-                line=dict(color=PRIMARY if _active else "#D7DEE8",
-                          width=3 if _active else 1.2),
+                line=dict(color=_ecol, width=_ewid),
                 showlegend=False, hoverinfo="skip",
             ))
             # Directional arrowhead ~62% of the way from source to target —
@@ -769,19 +910,50 @@ with _botr:
             _ax, _ay = _x0 + _dx * 0.62, _y0 + _dy * 0.62
             _fig_dag.add_trace(go.Scatter(
                 x=[_ax], y=[_ay], mode="markers",
-                marker=dict(symbol="triangle-right", size=11 if _active else 8,
-                            color=PRIMARY if _active else "#B9C2D0",
-                            angle=_ang, line=dict(width=0)),
+                marker=dict(symbol="triangle-right", size=9 + _strength * 4,
+                            color=_ecol, angle=_ang, line=dict(width=0)),
                 showlegend=False, hoverinfo="skip",
+            ))
+            # Invisible wide-hit marker at the edge midpoint carries the
+            # hover tooltip — reports which lever(s) drive this edge and
+            # how strong the current pull is, so hovering explains *why*
+            # a segment lit up rather than just showing that it did.
+            _mx, _my = (_x0 + _x1) / 2, (_y0 + _y1) / 2
+            _dsrc = [d for d in _drivers.get(_src, []) if d]
+            if not _dsrc:
+                _dsrc = [d for d in _drivers.get(_dst, []) if d]
+            if _dsrc:
+                _drv_txt = "<br>".join(_dsrc)
+            elif _strength > 0.001:
+                _drv_txt = f"{_src.replace('_',' ').title()} moved from its baseline (propagated effect)"
+            else:
+                _drv_txt = "No active lever on this edge"
+            _fig_dag.add_trace(go.Scatter(
+                x=[_mx], y=[_my], mode="markers",
+                marker=dict(size=22, color="rgba(0,0,0,0)"),
+                showlegend=False,
+                hovertemplate=(
+                    f"<b>{_src.replace('_',' ').title()} → {_dst.replace('_',' ').title()}</b><br>"
+                    f"Strength: {_strength*100:.0f}%<br>{_drv_txt}<extra></extra>"
+                ),
             ))
         for _n in _dag_nodes:
             _ncol = _role_colors.get(_n["role"], MUTED)
-            if _n["id"] in _active_nodes:
+            _nstr = _active_nodes.get(_n["id"], 0.0)
+            if _nstr > 0.001:
                 _fig_dag.add_trace(go.Scatter(
                     x=[_n["x"]], y=[_n["y"]], mode="markers",
-                    marker=dict(size=64, color=_ncol, opacity=0.18, line=dict(width=0)),
+                    marker=dict(size=54 + _nstr * 26, color=_ncol,
+                                opacity=0.12 + _nstr * 0.16, line=dict(width=0)),
                     showlegend=False, hoverinfo="skip",
                 ))
+            _val_bits = ""
+            if _n["id"] in _node_val:
+                _bv, _cv, _unit = _node_val[_n["id"]]
+                _val_bits = f"<br>{_bv:.2f} → {_cv:.2f} {_unit}"
+            _drv_bits = "<br>".join(d for d in _drivers.get(_n["id"], []) if d)
+            if _drv_bits:
+                _drv_bits = "<br>" + _drv_bits
             _fig_dag.add_trace(go.Scatter(
                 x=[_n["x"]], y=[_n["y"]],
                 mode="markers+text",
@@ -791,14 +963,23 @@ with _botr:
                 textposition="bottom center",
                 textfont=dict(size=9, color=TEXT),
                 showlegend=False,
-                hovertemplate=f"<b>{_n['id']}</b><br>Role: {_n['role']}<extra></extra>",
+                hovertemplate=(
+                    f"<b>{_n['id'].replace('_',' ').title()}</b><br>Role: {_n['role']}"
+                    f"{_val_bits}{_drv_bits}<extra></extra>"
+                ),
             ))
         _pad = 1.6  # data-unit padding so edge-row labels don't clip against the axes
         _xs_all = [n["x"] for n in _dag_nodes]
         _ys_all = [n["y"] for n in _dag_nodes]
         _dagl = dict(**PLOTLY_LAYOUT)
         _dagl.update(dict(
-            height=400, plot_bgcolor="#FAFBFC",
+            # The card this chart sits in is stretched (via CSS) to match
+            # its taller neighbor card in the same row. A fixed small chart
+            # height left that extra space as a dead blank strip below the
+            # graph instead of the graph using it, so this is deliberately
+            # tall enough to fill a typically-stretched card rather than
+            # the plot's own minimum content size.
+            height=620, plot_bgcolor="#FAFBFC",
             margin=dict(l=10, r=10, t=20, b=70),
             xaxis={"showgrid": False, "zeroline": False, "showticklabels": False,
                    "range": [min(_xs_all) - _pad, max(_xs_all) + _pad]},
@@ -816,15 +997,19 @@ with _botr:
                 f'<span style="font-size:0.75rem;color:{MUTED};">{_role}</span></div>'
             )
         _leg_html += (
-            f'<div style="display:flex;align-items:center;gap:4px;">'
-            f'<span style="width:18px;height:2px;background:{PRIMARY};display:inline-block;">'
-            f'</span><span style="font-size:0.75rem;color:{MUTED};">Active path</span></div>'
-            f'<div style="display:flex;align-items:center;gap:4px;">'
-            f'<span style="width:18px;height:2px;background:#CBD5E1;display:inline-block;">'
-            f'</span><span style="font-size:0.75rem;color:{MUTED};">Passive edge</span></div>'
+            f'<div style="display:flex;align-items:center;gap:5px;">'
+            f'<span style="width:26px;height:5px;border-radius:3px;'
+            f'background:linear-gradient(90deg,#D7DEE8,{PRIMARY});display:inline-block;"></span>'
+            f'<span style="font-size:0.75rem;color:{MUTED};">Edge thickness/color = pull strength '
+            f'from your current lever settings</span></div>'
             '</div>'
         )
         st.markdown(_leg_html, unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="font-size:0.72rem;color:{SUBTLE};margin-bottom:4px;">'
+            f'Hover any node or edge for the driving lever(s) and predicted value change.</div>',
+            unsafe_allow_html=True,
+        )
         st.plotly_chart(_fig_dag, use_container_width=True, theme=None,
                         config={"displayModeBar": False})
 

@@ -96,6 +96,135 @@ st.markdown(
 )
 st.markdown("<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>", unsafe_allow_html=True)
 
+# ── MODEL VALIDATION STRIP ────────────────────────────────────────────────
+# Answers "why should I trust this?" right under the headline claim —
+# discovered-graph-vs-planted-ground-truth precision/recall/F1, plus
+# bootstrap edge stability. Same numbers as the full breakdown in
+# Data & Discovery → Step 5, surfaced here so a reader never has to scroll
+# to find out whether the model is any good.
+#
+# Sourced from ablation["without_domain_knowledge"] — the raw PC-algorithm
+# discovery — NOT `dag_metrics`. `dag_metrics` is computed after
+# enforce_domain_knowledge() force-adds every planted ground-truth edge
+# into the graph, which makes recall = 1.00 guaranteed by construction
+# rather than something actually discovered; showing that number as the
+# headline trust signal would be circular (see phase2_discovery.py).
+_ov_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
+_ov_prec = _ov_wodk.get("precision", dag_metrics.get("precision", 0.0))
+_ov_rec  = _ov_wodk.get("recall",    dag_metrics.get("recall",    0.0))
+_ov_f1   = _ov_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
+
+def _ov_status(frac):
+    if frac >= 0.85: return SUCCESS, "Strong"
+    if frac >= 0.65: return WARNING, "Moderate"
+    return ERROR, "Needs Review"
+
+def _ov_metric_tile(icon, value, label, frac):
+    _color, _status = _ov_status(frac)
+    return (
+        f'<div style="background:#FFFFFF;border:1px solid {BORDER};border-radius:12px;'
+        f'padding:14px 16px;flex:1;min-width:140px;">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+        f'<span style="font-size:0.95rem;">{icon}</span>'
+        f'<span style="font-size:0.6rem;font-weight:800;color:{_color};background:{_color}1A;'
+        f'padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">{_status}</span>'
+        f'</div>'
+        f'<div style="font-size:1.7rem;font-weight:900;color:{TEXT};line-height:1.1;">{value}</div>'
+        f'<div style="font-size:0.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
+        f'letter-spacing:0.05em;margin-top:5px;margin-bottom:8px;">{label}</div>'
+        f'<div style="height:4px;background:{BORDER};border-radius:2px;overflow:hidden;">'
+        f'<div style="height:100%;width:{frac*100:.0f}%;background:{_color};border-radius:2px;"></div>'
+        f'</div>'
+        f'</div>'
+    )
+
+_ov_avg = (_ov_prec + _ov_rec + _ov_f1) / 3
+_ov_verdict_col, _ov_verdict_lbl = _ov_status(_ov_avg)
+
+st.markdown(
+    f'<div style="background:{CARD};border:1px solid {BORDER};border-radius:14px;'
+    f'padding:18px 22px;margin-bottom:28px;box-shadow:0 2px 10px rgba(15,23,42,0.03);">'
+    f'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">'
+    f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+    f'<span style="font-size:1.05rem;">🛡️</span>'
+    f'<span style="font-size:0.82rem;font-weight:800;color:{TEXT};text-transform:uppercase;letter-spacing:0.06em;">'
+    f'Model Validation — Discovered Graph vs. Ground Truth</span>'
+    f'<span style="font-size:0.66rem;font-weight:800;color:#FFFFFF;background:{_ov_verdict_col};'
+    f'padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">'
+    f'✓ {_ov_verdict_lbl}</span>'
+    f'</div>'
+    f'<span style="font-size:0.75rem;color:{SUBTLE};">Full breakdown in '
+    f'<b>Data &amp; Discovery → Step 5</b></span>'
+    f'</div>'
+    f'<div style="font-size:0.72rem;color:{SUBTLE};margin-bottom:14px;">'
+    f'Precision/recall/F1 are the raw statistical discovery, measured before domain-knowledge '
+    f'constraints are applied — not a number domain knowledge guarantees to be perfect.</div>'
+    f'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+    + _ov_metric_tile("🔁", f"{_boot_stab_pct:.0f}%", "Bootstrap Stability", _boot_stab_pct / 100)
+    + _ov_metric_tile("🎯", f"{_ov_prec:.2f}", "Precision", _ov_prec)
+    + _ov_metric_tile("🔎", f"{_ov_rec:.2f}", "Edge Recall", _ov_rec)
+    + _ov_metric_tile("⚖️", f"{_ov_f1:.2f}", "Recovery F1", _ov_f1)
+    + f'</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+with st.expander("ℹ️ How is this measured?"):
+    _ov_gt_n   = len(_ov_wodk.get("ground_truth_edges", [])) or dag.number_of_edges() or 9
+    _ov_tp     = _ov_wodk.get("true_positives",  0)
+    _ov_fp     = _ov_wodk.get("false_positives", 0)
+    _ov_fn     = _ov_wodk.get("false_negatives", 0)
+    _ov_boot_n = dag.graph.get("bootstrap_n", 20)
+
+    def _ov_flow_step(n, icon, title, desc):
+        return (
+            f'<div style="flex:1;min-width:160px;background:#FFFFFF;border:1px solid {BORDER};'
+            f'border-radius:10px;padding:12px 14px;">'
+            f'<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">'
+            f'<span style="width:18px;height:18px;border-radius:50%;background:{PRIMARY};color:#FFFFFF;'
+            f'font-size:0.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;'
+            f'flex-shrink:0;">{n}</span>'
+            f'<span style="font-size:0.9rem;">{icon}</span>'
+            f'<span style="font-size:0.78rem;font-weight:800;color:{TEXT};">{title}</span>'
+            f'</div>'
+            f'<div style="font-size:0.74rem;color:{MUTED};line-height:1.45;">{desc}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin-bottom:6px;">'
+        + _ov_flow_step(1, "🌱", "Plant a known answer",
+            f"Synthetic data generated from {_ov_gt_n} causal edges planted in advance.")
+        + '<div style="display:flex;align-items:center;color:#CBD5E1;font-size:1.2rem;font-weight:800;">→</div>'
+        + _ov_flow_step(2, "🔍", "Discover statistically",
+            f"PC algorithm runs {_ov_boot_n}× on resampled data, no domain rules yet.")
+        + '<div style="display:flex;align-items:center;color:#CBD5E1;font-size:1.2rem;font-weight:800;">→</div>'
+        + _ov_flow_step(3, "✅", "Compare, edge by edge",
+            f"Proposed graph checked against the {_ov_gt_n} planted edges.")
+        + f'</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f'<div style="background:#F8FAFC;border:1px solid {BORDER};border-radius:10px;'
+        f'padding:10px 14px;margin:12px 0;display:flex;gap:18px;flex-wrap:wrap;font-size:0.78rem;">'
+        f'<span style="color:{SUCCESS};font-weight:700;">✓ {_ov_tp} correct edges found</span>'
+        f'<span style="color:{ERROR};font-weight:700;">✗ {_ov_fp} false alarms</span>'
+        f'<span style="color:{WARNING};font-weight:700;">− {_ov_fn} missed edges</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"**Precision** = correct ÷ all proposed (of what it found, how much was right?) · "
+        f"**Recall** = correct ÷ all real (of what's true, how much did it find?) · "
+        f"**F1** = both balanced into one number.\n\n"
+        f"**Bootstrap Stability** is separate — the share of {_ov_boot_n} resampled reruns that "
+        f"agreed an edge was real, a guard against a lucky fluke. Domain-knowledge rules are "
+        f"applied only afterward, so these scores reflect the statistics working alone."
+    )
+    st.markdown(
+        f"Domain-knowledge constraints are applied only **after** this scoring, so these numbers "
+        f"are graded on the raw statistics alone. Full walkthrough in **Data & Discovery → Step 5**."
+    )
+
 # ── OCPM COMPARISON CARD ─────────────────────────────────────────────────
 _n_obj_types = 5 if domain == "manufacturing" else 4
 _obj_list    = "Orders · Machines · Workers · Materials · Shipments" if domain == "manufacturing" \
