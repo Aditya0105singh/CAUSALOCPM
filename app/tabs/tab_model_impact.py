@@ -1,17 +1,51 @@
-# ── AI CAUSAL INTERPRETATION (PHASE 0) ──────────────────────────────────────
-st.markdown(f"""
-<div style="background: linear-gradient(to right, #F8FAFC, #FFFFFF); border: 1px solid #E2E8F0; border-left: 4px solid #3B82F6; border-radius: 12px; padding: 24px 32px; margin-bottom: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-    <div style="font-size: 0.85rem; font-weight: 800; color: #3B82F6; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 1.2rem;">✨</span> AI Causal Interpretation
-    </div>
-    <ul style="color: #334155; font-size: 1rem; line-height: 1.7; margin: 0; padding-left: 20px;">
-        <li>The Structural Causal Model successfully quantified the strength of the discovered causal links.</li>
-        <li>The What-If Simulator allows you to dynamically adjust operational levers and observe their impact.</li>
-        <li>Treatment effects reveal that interventions have varying impacts depending on operational segments (CATE).</li>
-        <li>Use the simulator below to compare intervention scenarios before deployment.</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
+# ── AI CAUSAL INTERPRETATION ─────────────────────────────────────────────
+# Reuses the _ai_card/_ai_status component defined in tab_overview.py (which
+# execs first — see dashboard.py's tab loop) so all three "AI ___ Summary"
+# cards share one design instead of three hand-rolled variants. Content is
+# derived from this run's actual do_result / ablation numbers rather than a
+# fixed narrative, so it changes with the data instead of reading the same
+# regardless of what was discovered.
+_mi_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
+_mi_prec = _mi_wodk.get("precision", dag_metrics.get("precision", 0.0))
+_mi_rec  = _mi_wodk.get("recall",    dag_metrics.get("recall",    0.0))
+_mi_f1   = _mi_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
+_mi_conf_col, _mi_conf_lbl = _ai_status((_mi_prec + _mi_rec + _mi_f1) / 3)
+
+_mi_has_do = stage_status.get("do_operator") == "ok" and bool(do_result)
+if _mi_has_do:
+    _mi_causal  = do_result.get("causal", 0.0)
+    _mi_naive   = do_result.get("naive", 0.0)
+    _mi_gap_pct = do_result.get("gap_pct", 0.0)
+    _mi_ci_low  = do_result.get("ci_low", 0.0)
+    _mi_ci_high = do_result.get("ci_high", 0.0)
+    _mi_method  = do_result.get("method_label", "Double ML")
+    _mi_lead = (
+        f"Confounding adjustment recovered a causal effect of <b>{_mi_causal:.2f} days</b> — "
+        f"{abs(_mi_gap_pct):.0f}% different from the naive, uncorrected estimate."
+    )
+    _mi_bullet1 = (
+        f"Naive correlation suggested <b>{_mi_naive:.2f} days</b>; {_mi_method} correction gives "
+        f"<b>{_mi_causal:.2f} days</b> (95% CI [{_mi_ci_low:.2f}, {_mi_ci_high:.2f}])"
+    )
+else:
+    _mi_lead = "The Structural Causal Model quantified the strength of every discovered causal link."
+    _mi_bullet1 = "Run the Double ML estimator above to recover a confounding-adjusted causal effect"
+
+st.markdown(
+    _ai_card(
+        accent="#8B5CF6", badge_bg="#F5F3FF", icon="✨", title="AI Causal Interpretation",
+        conf_color=_mi_conf_col, conf_label=_mi_conf_lbl,
+        lead=_mi_lead,
+        bullets=[
+            _mi_bullet1,
+            f"Structural model validated at precision <b>{_mi_prec:.2f}</b> / recall "
+            f"<b>{_mi_rec:.2f}</b> against planted ground truth",
+            "Treatment effects vary by operational segment (CATE) — explore in Decision Intelligence",
+            "Use the What-If Simulator below to test interventions before committing budget",
+        ],
+    ),
+    unsafe_allow_html=True,
+)
 
 if is_custom:
     accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))

@@ -1,17 +1,56 @@
-# ── AI EXECUTIVE SUMMARY (PHASE 0) ──────────────────────────────────────────
-st.markdown(f"""
-<div style="background: linear-gradient(to right, #F8FAFC, #FFFFFF); border: 1px solid #E2E8F0; border-left: 4px solid #10B981; border-radius: 12px; padding: 24px 32px; margin-bottom: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-    <div style="font-size: 0.85rem; font-weight: 800; color: #10B981; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 1.2rem;">✨</span> AI Executive Summary
-    </div>
-    <ul style="color: #334155; font-size: 1rem; line-height: 1.7; margin: 0; padding-left: 20px;">
-        <li>Causal Discovery and Double ML jointly validate that this is a genuine causal relationship, not mere correlation.</li>
-        <li>The quantified headline finding and business impact are shown immediately below.</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
+# ── SHARED "AI ___ SUMMARY" CARD COMPONENT ─────────────────────────────────
+# Defined here because tab_overview.py is exec'd first (see dashboard.py's
+# tab loop) — Data & Discovery and Model & Impact reuse this same function
+# by name via the shared globals() dict all tabs execute into, rather than
+# each hand-rolling their own version of the same card, the way the old
+# "AI Executive/Discovery Summary" boxes independently did (three different
+# layouts for what was conceptually one component).
+def _ai_status(frac):
+    if frac >= 0.85: return SUCCESS, "High"
+    if frac >= 0.65: return WARNING, "Moderate"
+    return ERROR, "Low"
 
-# ── BOARDROOM HERO CARD ───────────────────────────────────────────────────
+def _ai_card(accent, badge_bg, icon, title, conf_color, conf_label, lead, bullets):
+    _bullets_html = "".join(f'<li style="margin-bottom:5px;">{b}</li>' for b in bullets)
+    return (
+        f'<div style="background:linear-gradient(135deg,{badge_bg},#FFFFFF);border:1px solid {BORDER};'
+        f'border-left:4px solid {accent};border-radius:14px;padding:24px 28px;margin-bottom:28px;'
+        f'box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">'
+        f'<div style="display:flex;align-items:center;gap:10px;">'
+        f'<span style="width:30px;height:30px;border-radius:9px;background:{accent}22;display:flex;'
+        f'align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">{icon}</span>'
+        f'<span style="font-size:0.85rem;font-weight:800;color:{accent};text-transform:uppercase;'
+        f'letter-spacing:0.08em;">{title}</span>'
+        f'</div>'
+        f'<span style="font-size:0.68rem;font-weight:800;color:#FFFFFF;background:{conf_color};'
+        f'padding:4px 11px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;">'
+        f'{conf_label} Confidence</span>'
+        f'</div>'
+        f'<div style="font-size:1.15rem;font-weight:800;color:#0F172A;line-height:1.45;margin-bottom:14px;">'
+        f'{lead}</div>'
+        f'<ul style="color:#334155;font-size:0.92rem;line-height:1.6;margin:0;padding-left:20px;">'
+        f'{_bullets_html}</ul>'
+        f'</div>'
+    )
+
+# ── MODEL VALIDATION NUMBERS (computed early — the AI card needs them too) ──
+# Sourced from ablation["without_domain_knowledge"] — the raw PC-algorithm
+# discovery — NOT `dag_metrics`. `dag_metrics` is computed after
+# enforce_domain_knowledge() force-adds every planted ground-truth edge
+# into the graph, which makes recall = 1.00 guaranteed by construction
+# rather than something actually discovered; showing that number as a
+# trust signal would be circular (see phase2_discovery.py).
+_ov_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
+_ov_prec = _ov_wodk.get("precision", dag_metrics.get("precision", 0.0))
+_ov_rec  = _ov_wodk.get("recall",    dag_metrics.get("recall",    0.0))
+_ov_f1   = _ov_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
+_ov_tp     = _ov_wodk.get("true_positives",  0)
+_ov_fp     = _ov_wodk.get("false_positives", 0)
+_ov_fn     = _ov_wodk.get("false_negatives", 0)
+_ov_boot_n = dag.graph.get("bootstrap_n", 20)
+
+# ── BOARDROOM HERO CARD (data) ─────────────────────────────────────────────
 _hero_treatment = cfg.get("treatment_var", "treatment")
 _hero_outcome   = cfg.get("outcome_label", cfg.get("outcome_var", "outcome"))
 # The "Recovered Causal Effect" card must show what the pipeline actually
@@ -42,6 +81,30 @@ _hero_act_short   = "Shift 25% to Supplier B" if domain == "manufacturing" else 
 # text — string-splitting on " dependency"/" over-allocation" would silently
 # break if that display copy ever changed.
 _primary_driver   = "Supplier A" if domain == "manufacturing" else "Specialist Allocation"
+
+# ── AI EXECUTIVE SUMMARY — now genuinely derived from this run's numbers
+# (recovered causal effect, discovery precision/recall, recommended action)
+# instead of a fixed string that read the same regardless of the data.
+_ov_avg_conf = (_ov_prec + _ov_rec + _ov_f1) / 3
+_ov_conf_col, _ov_conf_lbl = _ai_status(_ov_avg_conf)
+st.markdown(
+    _ai_card(
+        accent=PRIMARY, badge_bg="#F0FDF4", icon="✨", title="AI Executive Summary",
+        conf_color=_ov_conf_col, conf_label=_ov_conf_lbl,
+        lead=(
+            f"<b>{_primary_driver}</b> is confirmed as the dominant causal driver of "
+            f"{_hero_label.lower()} — statistically validated, not just correlated."
+        ),
+        bullets=[
+            f"Recovered causal effect: <b>{_hero_causal} days</b> via Double ML — "
+            f"{_hero_pct} reduction potential vs. baseline",
+            f"Discovery precision <b>{_ov_prec:.2f}</b>, recall <b>{_ov_rec:.2f}</b> across "
+            f"{_ov_boot_n} bootstrap reruns (full breakdown below)",
+            f"Recommended action: <b>{_hero_action}</b> → {_hero_saving}/yr expected savings",
+        ],
+    ),
+    unsafe_allow_html=True,
+)
 
 st.markdown(
     f'<div style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 60%, #134E4A 100%); '
@@ -103,20 +166,8 @@ st.markdown("<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>"
 # Data & Discovery → Step 5, surfaced here so a reader never has to scroll
 # to find out whether the model is any good.
 #
-# Sourced from ablation["without_domain_knowledge"] — the raw PC-algorithm
-# discovery — NOT `dag_metrics`. `dag_metrics` is computed after
-# enforce_domain_knowledge() force-adds every planted ground-truth edge
-# into the graph, which makes recall = 1.00 guaranteed by construction
-# rather than something actually discovered; showing that number as the
-# headline trust signal would be circular (see phase2_discovery.py).
-_ov_wodk = ablation.get("without_domain_knowledge", {}) if ablation else {}
-_ov_prec = _ov_wodk.get("precision", dag_metrics.get("precision", 0.0))
-_ov_rec  = _ov_wodk.get("recall",    dag_metrics.get("recall",    0.0))
-_ov_f1   = _ov_wodk.get("f1_score",  dag_metrics.get("f1_score",  0.0))
-_ov_tp     = _ov_wodk.get("true_positives",  0)
-_ov_fp     = _ov_wodk.get("false_positives", 0)
-_ov_fn     = _ov_wodk.get("false_negatives", 0)
-_ov_boot_n = dag.graph.get("bootstrap_n", 20)
+# (numbers already computed above, near the AI Executive Summary card,
+# since that card needs them too)
 
 def _ov_status(frac):
     if frac >= 0.85: return SUCCESS, "Strong"

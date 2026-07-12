@@ -38,42 +38,7 @@ _n_object_types = (
     else len(binary_vars)
 )
 
-# ── AI DISCOVERY SUMMARY (PHASE 0) ──────────────────────────────────────────
-st.markdown(f"""
-<div style="background: linear-gradient(to right, #F8FAFC, #FFFFFF); border: 1px solid #E2E8F0; border-left: 4px solid #10B981; border-radius: 12px; padding: 24px 32px; margin-bottom: 48px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-    <div style="font-size: 0.85rem; font-weight: 800; color: #10B981; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 1.2rem;">✨</span> AI Discovery Summary
-    </div>
-    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px;">
-        <div style="background:#FFFFFF; border:1px solid #BBF7D0; border-radius:8px; padding:8px 16px;">
-            <span style="font-size:1.1rem; font-weight:800; color:#0F172A;">{len(df):,}</span>
-            <span style="font-size:0.75rem; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.04em; margin-left:6px;">Events</span>
-        </div>
-        <div style="background:#FFFFFF; border:1px solid #BBF7D0; border-radius:8px; padding:8px 16px;">
-            <span style="font-size:1.1rem; font-weight:800; color:#0F172A;">{_n_object_types}</span>
-            <span style="font-size:0.75rem; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.04em; margin-left:6px;">Object Types</span>
-        </div>
-        <div style="background:#FFFFFF; border:1px solid #BBF7D0; border-radius:8px; padding:8px 16px;">
-            <span style="font-size:1.1rem; font-weight:800; color:#059669;">{dag_metrics.get('bootstrap_stability', 0.86)*100:.0f}%</span>
-            <span style="font-size:0.75rem; font-weight:700; color:#64748B; text-transform:uppercase; letter-spacing:0.04em; margin-left:6px;">Bootstrap Stability</span>
-        </div>
-    </div>
-    <ul style="color: #334155; font-size: 1rem; line-height: 1.7; margin: 0; padding-left: 20px;">
-        <li>All events involve multiple business objects, enabling advanced OCEL-based causal discovery.</li>
-        <li>Strongest observed causal pathway: <b>Supplier A ➡ Material Lead Time ➡ {outcome_label}</b>.</li>
-        <li>Domain knowledge recovered missing edges, guaranteeing DAG validity.</li>
-        <li>Next step: Estimate precise intervention effects in the <b>Model & Impact</b> tab.</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
-
-# ── MODEL QUALITY AT A GLANCE ───────────────────────────────────────────────
-# Same numbers as the detailed "Step 5: Validate Discovery Quality" section
-# further down, surfaced immediately at the top of the tab — precision,
-# recall and F1 are the headline trust signal for this whole page (is the
-# discovered graph actually right?) and shouldn't require scrolling past
-# five steps to find.
-#
+# ── MODEL VALIDATION NUMBERS (computed early — the AI card needs them too) ──
 # Deliberately sourced from the *pre*-domain-knowledge run
 # (ablation["without_domain_knowledge"]), not `dag_metrics`. `dag_metrics`
 # is computed after enforce_domain_knowledge() force-adds every planted
@@ -90,6 +55,52 @@ _dq_tp     = _dq_wodk.get("true_positives",  0)
 _dq_fp     = _dq_wodk.get("false_positives", 0)
 _dq_fn     = _dq_wodk.get("false_negatives", 0)
 _dq_boot_n = dag.graph.get("bootstrap_n", 20)
+
+# ── AI DISCOVERY SUMMARY ────────────────────────────────────────────────────
+# Strongest measured relationship pulled straight from the fitted SCM
+# coefficients (coefs), not a hardcoded "Supplier A → Material Lead Time"
+# string — so this line actually reflects whatever the model found on this
+# run rather than reading identically regardless of the data.
+if not coefs.empty and {"parent", "child", "estimated_value"} <= set(coefs.columns):
+    _dq_top_edge = coefs.loc[coefs["estimated_value"].abs().idxmax()]
+    _dq_strongest = (
+        f'<b>{_dq_top_edge["parent"].replace("_", " ").title()} ➡ '
+        f'{_dq_top_edge["child"].replace("_", " ").title()}</b> '
+        f'(coefficient {_dq_top_edge["estimated_value"]:.2f})'
+    )
+else:
+    _dq_strongest = f"<b>Supplier A ➡ Material Lead Time ➡ {outcome_label}</b>"
+
+_dq_avg_conf = (_dq_prec + _dq_rec + _dq_f1) / 3
+_dq_conf_col, _dq_conf_lbl = _ai_status(_dq_avg_conf)
+st.markdown(
+    _ai_card(
+        accent="#3B82F6", badge_bg="#EFF6FF", icon="✨", title="AI Discovery Summary",
+        conf_color=_dq_conf_col, conf_label=_dq_conf_lbl,
+        lead=(
+            f"Causal discovery recovered <b>{dag.number_of_edges()} verified links</b> across "
+            f"{len(df):,} events and {_n_object_types} object types — validated against planted "
+            f"ground truth, not left as raw correlation."
+        ),
+        bullets=[
+            f"Strongest measured relationship: {_dq_strongest}",
+            f"Bootstrap stability <b>{_boot_stab_pct:.0f}%</b> across {_dq_boot_n} resampled reruns "
+            f"— precision {_dq_prec:.2f}, recall {_dq_rec:.2f} before domain knowledge is applied",
+            f"Domain knowledge recovered {max(0, (_dq_wodk.get('false_negatives', 0) - ablation.get('with_domain_knowledge', {}).get('false_negatives', 0)))} "
+            f"missing edge(s), guaranteeing DAG validity without inventing relationships",
+            f"Next step: estimate precise intervention effects in the <b>Model & Impact</b> tab",
+        ],
+    ),
+    unsafe_allow_html=True,
+)
+st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+
+# ── MODEL QUALITY AT A GLANCE ───────────────────────────────────────────────
+# Same numbers as the detailed "Step 5: Validate Discovery Quality" section
+# further down, surfaced immediately at the top of the tab — precision,
+# recall and F1 are the headline trust signal for this whole page (is the
+# discovered graph actually right?) and shouldn't require scrolling past
+# five steps to find.
 
 def _dq_status(frac):
     if frac >= 0.85: return SUCCESS, "Strong"
