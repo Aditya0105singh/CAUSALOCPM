@@ -91,6 +91,17 @@ with _nav_pick:
     )
 st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
+def _ci_section_header(icon_bg, icon, title, subtitle=None):
+    st.markdown(
+        f'<div style="display:flex; align-items:center; gap:9px; margin-bottom:4px;">'
+        f'<div style="width:26px; height:26px; border-radius:7px; background:{icon_bg}; '
+        f'display:flex; align-items:center; justify-content:center; font-size:0.8rem; flex-shrink:0;">{icon}</div>'
+        f'<span style="color:#1E293B; font-size:0.95rem; font-weight:700;">{title}</span>'
+        f'</div>'
+        + (f'<div style="color:#64748B; font-size:0.78rem; margin:0 0 12px 35px;">{subtitle}</div>' if subtitle else '<div style="height:8px;"></div>'),
+        unsafe_allow_html=True,
+    )
+
 case_idx = case_ids.index(selected_case) if selected_case in case_ids else 0
 
 expl           = explain_case(df, scm, case_idx, outcome_var, domain=domain)
@@ -135,9 +146,13 @@ if not expl.empty:
         f"<b>{top_contributor}</b> was the dominant contributor to this outcome. "
         f"Additional interventions targeting controllable factors could further improve the outcome by approximately {attrib_summary['max_reducible_delay']:.2f} {outcome_label}."
     )
+    # Banner tint follows whether this case is actually better or worse than
+    # baseline — it previously always rendered green, which read as "good
+    # news" even on cases that underperformed the population average.
+    _exec_bg = "#F0FDF4" if diff < 0 else "#FFFBEB"
     st.markdown(
-        f'<div style="background:#F0FDF4; border-left:4px solid {SUCCESS}; padding:20px; border-radius:4px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
-        f'<div style="color:{SUCCESS}; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Executive Interpretation</div>'
+        f'<div style="background:{_exec_bg}; border-left:4px solid {status_color}; padding:20px; border-radius:4px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
+        f'<div style="color:{status_color}; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Executive Interpretation</div>'
         f'<div style="color:#1E293B; font-size:1.05rem; line-height:1.6;">{exec_text}</div>'
         f'</div>',
         unsafe_allow_html=True
@@ -179,35 +194,68 @@ if not expl.empty:
     )
     st.markdown(snap_html, unsafe_allow_html=True)
 
-    # Outcome Attribution (Hero Visualization)
-    st.markdown("<h4 style='color:#1E293B; margin-bottom:8px;'>Why Did This Outcome Occur?</h4>", unsafe_allow_html=True)
+    # Outcome Attribution (Hero Visualization) — wrapped in a bordered card
+    # (st.container(border=True), the same primitive tab_model_impact.py
+    # uses for its own waterfall) so this reads as one section instead of a
+    # heading and a chart floating loose on the page background.
+    with st.container(border=True):
+        _ci_section_header(
+            "#FCE7F3", "📉", "Why Did This Outcome Occur?",
+            "SHAP decomposition — how each factor pushed this case's outcome away from the population average",
+        )
 
-    fig_wf = go.Figure(go.Waterfall(
-        x=["Population Average"] + [f.replace("_", " ").title() for f in features] + ["Case Prediction"],
-        y=[baseline] + shap_vals + [0],
-        measure=["absolute"] + ["relative"] * len(shap_vals) + ["total"],
-        connector=dict(line=dict(color=BORDER, width=2)),
-        increasing=dict(marker_color=ERROR),
-        decreasing=dict(marker_color=SUCCESS),
-        totals=dict(marker_color="#334155"),
-        texttemplate="%{y:+.2f}", textposition="outside",
-        textfont=dict(size=12)
-    ))
-    fig_wf.add_hline(y=actual, line_dash="dash", line_color="#94A3B8",
-                      annotation_text=f"Actual: {actual:.2f}",
-                      annotation_font_color="#475569")
-    _wfl = dict(**PLOTLY_LAYOUT)
-    _wfl.update(dict(
-        yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label, "title_font": dict(size=14)},
-        xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "tickangle": -40, "tickfont": dict(size=11), "automargin": True},
-        height=560,
-        margin=dict(l=20, r=20, t=20, b=160),
-    ))
-    fig_wf.update_layout(**_wfl)
-    try:
-        st.plotly_chart(fig_wf, use_container_width=True, theme=None, config={'displayModeBar': False})
-    except Exception as _e:
-        st.error(f"Chart error: {_e}")
+        _wf_labels = ["Population Average"] + [f.replace("_", " ").title() for f in features] + ["Case Prediction"]
+        _wf_values = [baseline] + shap_vals + [0]
+        # Explicit formatted text per bar instead of texttemplate — texttemplate
+        # on go.Waterfall doesn't reliably apply number formatting across
+        # Plotly versions and was rendering raw, unrounded floats.
+        _wf_text = [f"{baseline:.2f}"] + [f"{v:+.2f}" for v in shap_vals] + [f"{predicted:.2f}"]
+
+        fig_wf = go.Figure(go.Waterfall(
+            x=_wf_labels,
+            y=_wf_values,
+            measure=["absolute"] + ["relative"] * len(shap_vals) + ["total"],
+            connector=dict(line=dict(color=BORDER, width=1, dash="dot")),
+            increasing=dict(marker_color=ERROR),
+            decreasing=dict(marker_color=SUCCESS),
+            totals=dict(marker_color="#334155"),
+            text=_wf_text, textposition="outside",
+            textfont=dict(size=12),
+        ))
+        # No inline annotation on the hline itself — at low actual/baseline
+        # ratios it landed on top of the first bar's own value label. A
+        # caption below the chart says the same thing without any overlap risk.
+        fig_wf.add_hline(y=actual, line_dash="dash", line_color="#94A3B8")
+        # Explicit y-range with headroom — without it the tallest bar (usually
+        # Population Average) touched the very top of the plot with no room
+        # for its own text label, and the dashed "Actual" line could sit flush
+        # against the top edge too.
+        _y_top = max(_wf_values + [actual, predicted, baseline]) * 1.2
+        _wfl = dict(**PLOTLY_LAYOUT)
+        _wfl.update(dict(
+            yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label, "title_font": dict(size=13),
+                   "range": [0, _y_top]},
+            xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "tickangle": -30, "tickfont": dict(size=11), "automargin": True},
+            height=440,
+            margin=dict(l=70, r=30, t=40, b=100),
+            showlegend=False,
+        ))
+        fig_wf.update_layout(**_wfl)
+        try:
+            st.plotly_chart(fig_wf, use_container_width=True, theme=None, config={'displayModeBar': False})
+        except Exception as _e:
+            st.error(f"Chart error: {_e}")
+        st.markdown(
+            f'<div style="font-size:0.78rem; color:#94A3B8; margin-top:-8px;">'
+            f'<span style="display:inline-block; width:16px; border-top:2px dashed #94A3B8; '
+            f'vertical-align:middle; margin-right:6px;"></span>'
+            f'Dashed line marks the actual recorded outcome ({actual:.2f} {outcome_label}) — the bars build up '
+            f'the model\'s <i>predicted</i> outcome ({predicted:.2f}) instead, so a gap between the two is the '
+            f'model\'s residual error for this case.</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
 
     # Actionability Insights
     col_opp, col_con = st.columns(2)
@@ -252,7 +300,7 @@ if not expl.empty:
     )
 
     # Technical Evidence
-    with st.expander("Detailed Attribution Analysis"):
+    with st.expander("🔍 Detailed Attribution Analysis"):
         st.markdown("Raw SHAP values and attribution categories supporting the executive summary.")
         detail = expl[["feature", "attribution", "shap_value", "feature_value"]].copy()
         detail.columns = ["Feature", "Attribution", "SHAP Value", "Feature Value"]
@@ -294,5 +342,5 @@ if not expl.empty:
 _render_sensitivity_section()
 
 # Methodological Foundation
-with st.expander("Methodological Foundation"):
+with st.expander("📚 Methodological Foundation"):
     st.markdown(explain_limitation(include_citation=True))

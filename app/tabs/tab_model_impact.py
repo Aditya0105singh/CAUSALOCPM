@@ -1160,7 +1160,7 @@ def _render_sensitivity_section(expanded=False):
     _sens = do_result.get("sensitivity")
     if not _sens:
         return
-    with st.expander("Sensitivity to Unmeasured Confounding", expanded=expanded):
+    with st.expander("🛡️ Sensitivity to Unmeasured Confounding", expanded=expanded):
         st.markdown(
             "Every causal estimate here assumes the discovered DAG captures the "
             "relevant confounders. This section stress-tests that assumption "
