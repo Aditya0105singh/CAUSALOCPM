@@ -267,6 +267,13 @@ if not expl.empty:
             unsafe_allow_html=True,
         )
 
+# Sensitivity to Unmeasured Confounding — every case's SHAP attribution
+# above rests on the same Double ML causal effect, so "how much should I
+# trust the causal story behind this case" belongs here too. Reuses the
+# exact function from Model & Impact (via shared exec globals) rather
+# than duplicating ~70 lines of chart/metric code.
+_render_sensitivity_section()
+
 # Methodological Foundation
 with st.expander("Methodological Foundation"):
     st.markdown(explain_limitation(include_citation=True))
