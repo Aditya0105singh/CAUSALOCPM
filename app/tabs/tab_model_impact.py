@@ -40,8 +40,9 @@ st.markdown(
             _mi_bullet1,
             f"Structural model validated at precision <b>{_mi_prec:.2f}</b> / recall "
             f"<b>{_mi_rec:.2f}</b> against planted ground truth",
-            "Treatment effects vary by operational segment (CATE) — explore in Decision Intelligence",
-            "Use the What-If Simulator below to test interventions before committing budget",
+            "Treatment effects vary by operational segment (CATE) — explore further down this tab",
+            "Use the What-If Simulator below to test interventions, or the Case Inspection tab to "
+            "drill into any individual case's outcome",
         ],
     ),
     unsafe_allow_html=True,
@@ -1223,233 +1224,6 @@ if not is_custom and stage_status.get("do_operator") == "ok" and do_result:
             st.caption(_sens.get("verdict", ""))
 
 
-# SECTION — CASE ATTRIBUTION (part of Model & Impact tab)
-st.divider()
-from src.phase5_attribution import (explain_case, get_attribution_summary,
-                                     explain_limitation)
-
-outcome_var   = cfg["outcome_var"]
-outcome_label = cfg["outcome_label"]
-
-if is_custom:
-    accuracy_disclaimer(custom_confidence, len(df), custom_quality.get("score", 0))
-
-id_cols     = ["order_id", "patient_id"]
-case_id_col = next((c for c in id_cols if c in df.columns), None)
-case_ids    = df[case_id_col].tolist() if case_id_col else [f"Case_{i}" for i in range(len(df))]
-
-# SECTION 1: Case Selection
-st.markdown("<h4 style='color:#1E293B; margin-bottom:16px;'>Investigating Case</h4>", unsafe_allow_html=True)
-sel_col, dummy_col = st.columns([1, 2])
-with sel_col:
-    selected_case = st.selectbox("Select Case", options=case_ids[:200], index=0, key="case_selector", label_visibility="collapsed")
-    if len(case_ids) > 200:
-        st.caption(f"Showing the first 200 of {len(case_ids):,} cases.")
-case_idx = case_ids.index(selected_case) if selected_case in case_ids else 0
-
-expl           = explain_case(df, scm, case_idx, outcome_var, domain=domain)
-attrib_summary = get_attribution_summary(expl)
-
-if not expl.empty:
-    baseline  = expl.attrs.get("baseline", 0.0)
-    predicted = expl.attrs.get("predicted_outcome", 0.0)
-    actual    = expl.attrs.get("actual_outcome", df[outcome_var].iloc[case_idx])
-    features  = expl["feature"].tolist()
-    shap_vals = expl["shap_value"].tolist()
-    
-    # Determine performance context
-    diff = actual - baseline
-    if diff < 0:
-        performance = f"outperforming the population average by {abs(diff):.2f} {outcome_label}"
-        status_text = "✓ Better than baseline"
-        status_color = SUCCESS
-    else:
-        performance = f"underperforming the population average by {abs(diff):.2f} {outcome_label}"
-        status_text = "⚠️ Worse than baseline"
-        status_color = "#B45309"
-        
-    # Top contributor
-    top_row = expl.iloc[expl["shap_value"].abs().idxmax()]
-    top_contributor = top_row["feature"].replace("_", " ").title()
-    
-    # SECTION 2: Executive Interpretation Banner
-    exec_text = (
-        f"Case <b>{selected_case}</b> achieved an outcome of {actual:.2f} {outcome_label}, {performance}. "
-        f"<b>{top_contributor}</b> was the dominant contributor to this outcome. "
-        f"Additional interventions targeting controllable factors could further improve the outcome by approximately {attrib_summary['max_reducible_delay']:.2f} {outcome_label}."
-    )
-    st.markdown(
-        f'<div style="background:#F0FDF4; border-left:4px solid {SUCCESS}; padding:20px; border-radius:4px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.02);">'
-        f'<div style="color:{SUCCESS}; font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Executive Interpretation</div>'
-        f'<div style="color:#1E293B; font-size:1.05rem; line-height:1.6;">{exec_text}</div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
-    
-    # SECTION 3: Case Snapshot
-    complexity_col = "order_complexity" if domain == "manufacturing" else "patient_complexity"
-    comp_val = df[complexity_col].iloc[case_idx] if complexity_col in df.columns else 0
-    comp_text = "High" if comp_val > 5 else "Low"
-    
-    treat_label = cfg["treatment_options"].get(cfg["treatment_var"], cfg["treatment_var"]) if "treatment_options" in cfg else "Treatment"
-    treat_val = "Yes" if int(df[cfg["treatment_var"]].iloc[case_idx]) == 1 else "No" if cfg["treatment_var"] in df.columns else "N/A"
-    
-    snap_html = (
-        f'<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">'
-        f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid {status_color}; padding:16px; border-radius:10px;">'
-        f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Actual Outcome</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:{TEXT}; margin-top:4px;">{actual:.2f}</div>'
-        f'<div style="font-size:0.85rem; font-weight:600; color:{status_color}; margin-top:4px;">{status_text}</div>'
-        f'</div>'
-        f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:16px; border-radius:10px;">'
-        f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Complexity Profile</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:{TEXT}; margin-top:4px;">{comp_text}</div>'
-        f'<div style="font-size:0.85rem; font-weight:600; color:#64748B; margin-top:4px;">{comp_val:.0f} / 10</div>'
-        f'</div>'
-        f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; padding:16px; border-radius:10px;">'
-        f'<div style="color:#64748B; font-size:0.8rem; font-weight:700; text-transform:uppercase;">Treatment Strategy</div>'
-        f'<div style="font-size:1.8rem; font-weight:800; color:{TEXT}; margin-top:4px;">{treat_val}</div>'
-        f'<div style="font-size:0.85rem; font-weight:600; color:#64748B; margin-top:4px;">{treat_label} applied</div>'
-        f'</div>'
-        f'</div>'
-    )
-    st.markdown(snap_html, unsafe_allow_html=True)
-    
-    # SECTION 4: Outcome Attribution (Hero Visualization)
-    st.markdown("<h4 style='color:#1E293B; margin-bottom:8px;'>Why Did This Outcome Occur?</h4>", unsafe_allow_html=True)
-    
-    fig_wf = go.Figure(go.Waterfall(
-        x=["Population Average"] + [f.replace("_", " ").title() for f in features] + ["Case Prediction"],
-        y=[baseline] + shap_vals + [0],
-        measure=["absolute"] + ["relative"] * len(shap_vals) + ["total"],
-        connector=dict(line=dict(color=BORDER, width=2)),
-        increasing=dict(marker_color=ERROR),
-        decreasing=dict(marker_color=SUCCESS),
-        totals=dict(marker_color="#334155"),
-        texttemplate="%{y:+.2f}", textposition="outside",
-        textfont=dict(size=12)
-    ))
-    fig_wf.add_hline(y=actual, line_dash="dash", line_color="#94A3B8",
-                      annotation_text=f"Actual: {actual:.2f}",
-                      annotation_font_color="#475569")
-    _wfl = dict(**PLOTLY_LAYOUT)
-    _wfl.update(dict(
-        yaxis={**PLOTLY_LAYOUT.get("yaxis", {}), "title": outcome_label, "title_font": dict(size=14)},
-        xaxis={**PLOTLY_LAYOUT.get("xaxis", {}), "tickangle": -40, "tickfont": dict(size=11), "automargin": True},
-        height=560,
-        margin=dict(l=20, r=20, t=20, b=160),
-    ))
-    fig_wf.update_layout(**_wfl)
-    try:
-        st.plotly_chart(fig_wf, use_container_width=True, theme=None, config={'displayModeBar': False})
-    except Exception as _e:
-        st.error(f"Chart error: {_e}")
-
-    # SECTION 5: Actionability Insights
-    col_opp, col_con = st.columns(2)
-    with col_opp:
-        st.markdown(
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid #2563EB; padding:24px; border-radius:12px; height:100%; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:{TEXT}; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#2563EB; margin-right:6px;">●</span> Intervention Opportunities</div>'
-            f'<div style="color:#64748B; font-size:0.9rem; font-weight:600; margin-bottom:16px;">Controllable Factors Contribution</div>'
-            f'<div style="font-size:2.4rem; font-weight:800; color:#2563EB; margin-bottom:16px;">{attrib_summary["actionable_total"]:+.2f}</div>'
-            f'<div style="color:#334155; font-size:0.95rem; line-height:1.5;">Operational actions targeting these controllable factors could substantially influence future outcomes. '
-            f'Confidence in causal effect is <span style="color:{_conf_col};font-weight:700;">{_conf_lbl.lower()}</span> '
-            f'(F1 = {_sim_f1:.2f}).</div>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-        
-    with col_con:
-        st.markdown(
-            f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-top:3px solid #94A3B8; padding:24px; border-radius:12px; height:100%; box-shadow:0 4px 12px rgba(0,0,0,0.03);">'
-            f'<div style="color:{TEXT}; font-size:0.85rem; font-weight:800; text-transform:uppercase; margin-bottom:8px;"><span style="color:#64748B; margin-right:6px;">●</span> System Constraints</div>'
-            f'<div style="color:#64748B; font-size:0.9rem; font-weight:600; margin-bottom:16px;">Structural Contribution</div>'
-            f'<div style="font-size:2.4rem; font-weight:800; color:#64748B; margin-bottom:16px;">{attrib_summary["structural_total"]:+.2f}</div>'
-            f'<div style="color:#334155; font-size:0.95rem; line-height:1.5;">These drivers arise from underlying process characteristics. Altering them may require long-term system-level transformation efforts.</div>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-        
-    st.markdown("<div style='height:32px;'></div>", unsafe_allow_html=True)
-    
-    # SECTION 6: Key Insight Summary
-    top_controllable = expl[expl['attribution'] == 'actionable']
-    if not top_controllable.empty:
-        top_ctrl_feat = top_controllable.iloc[top_controllable['shap_value'].abs().idxmax()]['feature'].replace("_", " ").title()
-    else:
-        top_ctrl_feat = "Treatment"
-        
-    insight_card(
-        "Key Insight",
-        f"{top_ctrl_feat} was the most significant controllable lever in this case. "
-        f"Although structural limits exist, further interventions targeting actionable drivers could yield additional operational gains of up to {attrib_summary['max_reducible_delay']:.2f}.",
-        "executive",
-    )
-
-    # SECTION 7: Technical Evidence
-    with st.expander("Detailed Attribution Analysis"):
-        st.markdown("Raw SHAP values and attribution categories supporting the executive summary.")
-        detail = expl[["feature", "attribution", "shap_value", "feature_value"]].copy()
-        detail.columns = ["Feature", "Attribution", "SHAP Value", "Feature Value"]
-        
-        # Formatting
-        tbl_rows = ""
-        # Sort by absolute SHAP value
-        detail['abs_shap'] = detail['SHAP Value'].abs()
-        detail = detail.sort_values(by='abs_shap', ascending=False)
-        
-        for _, row in detail.iterrows():
-            feat = row['Feature']
-            attr = row['Attribution']
-            shap = row['SHAP Value']
-            val = row['Feature Value']
-            
-            attr_badge = f'<span style="background:#DBEAFE; color:#1E40AF; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;">Controllable</span>' if attr == 'actionable' else f'<span style="background:#F1F5F9; color:#475569; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;">Structural</span>'
-            shap_color = SUCCESS if shap < 0 else ERROR
-            
-            tbl_rows += (
-                f"<tr>"
-                f'<td style="font-weight:600; color:#334155;">{feat}</td>'
-                f'<td>{attr_badge}</td>'
-                f'<td style="color:{shap_color}; font-weight:700;">{shap:+.4f}</td>'
-                f'<td style="color:#64748B;">{val:.2f}</td>'
-                f'</tr>'
-            )
-            
-        st.markdown(
-            f'<table class="ctbl" style="width:100%;"><thead><tr>'
-            f"<th>Feature</th><th>Category</th><th>SHAP Value</th><th>Feature Value</th>"
-            f"</tr></thead><tbody>{tbl_rows}</tbody></table>",
-            unsafe_allow_html=True,
-        )
-
-# SECTION 8: Methodological Foundation
-with st.expander("Methodological Foundation"):
-    st.markdown(explain_limitation(include_citation=True))
-
-
-# Cross-domain validation note — condensed to a static summary (the live n=500
-# benchmark recompute + scorecards were removed as an unnecessary extra tab;
-# see project history for the full Manufacturing-vs-Healthcare benchmark).
-_domain_validation_note_html = (
-'<div style="background:#F8FAFC; border:1px solid #CBD5E1; padding:24px; border-radius:12px;">'
-'<div style="text-align:center;">'
-'<h4 style="color:#1E293B; font-weight:900; letter-spacing:-0.5px; margin-bottom:8px;">DOMAIN-AGNOSTIC CAUSAL INTELLIGENCE</h4>'
-'<div style="color:#94A3B8;font-size:0.78rem;font-weight:600;margin-bottom:16px;">Controlled benchmark · n=500 synthetic cases per domain · Pre-domain-knowledge discovery</div>'
-'<p style="color:#334155; font-size:1rem; line-height:1.6; max-width:800px; margin:0 auto 20px auto;">'
-'CausalOCPM successfully recovered confounding structures and true causal effects across Manufacturing and Healthcare without requiring domain-specific modifications.</p>'
-'<div style="display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">'
-'<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Generalises Across Industries</div>'
-'<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Preserves Causal Validity</div>'
-'<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Requires No Custom Redesign</div>'
-'</div>'
-'</div>'
-'</div>'
-)
-
-
-
 # ── SECTION 2.5: Treatment Effect Heterogeneity (CATE) ──────────────────────
 if not is_custom:
     _mod_var   = cfg.get("moderator_var", "")
@@ -1571,6 +1345,31 @@ if not is_custom:
                 f'</div></div>',
                 unsafe_allow_html=True,
             )
+
+# Cross-domain validation note — condensed to a static summary (the live n=500
+# benchmark recompute + scorecards were removed as an unnecessary extra tab;
+# see project history for the full Manufacturing-vs-Healthcare benchmark).
+# Closing card for this tab (rendered last, after CATE) — kept as a named
+# variable, not inlined, because tab_decision_intelligence.py also reuses
+# this exact global (via the shared exec globals() dict) inside its own
+# "Cross-domain validation benchmark" expander.
+_domain_validation_note_html = (
+    '<div style="background:#F8FAFC; border:1px solid #CBD5E1; padding:24px; border-radius:12px;">'
+    '<div style="text-align:center;">'
+    '<h4 style="color:#1E293B; font-weight:900; letter-spacing:-0.5px; margin-bottom:8px;">DOMAIN-AGNOSTIC CAUSAL INTELLIGENCE</h4>'
+    '<div style="color:#94A3B8;font-size:0.78rem;font-weight:600;margin-bottom:16px;">Controlled benchmark · n=500 synthetic cases per domain · Pre-domain-knowledge discovery</div>'
+    '<p style="color:#334155; font-size:1rem; line-height:1.6; max-width:800px; margin:0 auto 20px auto;">'
+    'CausalOCPM successfully recovered confounding structures and true causal effects across Manufacturing and Healthcare without requiring domain-specific modifications.</p>'
+    '<div style="display:flex; justify-content:center; gap:16px; flex-wrap:wrap;">'
+    '<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Generalises Across Industries</div>'
+    '<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Preserves Causal Validity</div>'
+    '<div style="background:#F0FDF4; color:#059669; padding:6px 14px; border-radius:24px; font-weight:700; font-size:0.85rem; border:1px solid #BBF7D0;">✓ Requires No Custom Redesign</div>'
+    '</div>'
+    '</div>'
+    '</div>'
+)
+st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+st.markdown(_domain_validation_note_html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 7 — CEO DECISION INTELLIGENCE REPORT

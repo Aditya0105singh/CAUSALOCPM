@@ -1391,10 +1391,11 @@ hero_ph.markdown(
 
 
 # ── TAB LAYOUT ────────────────────────────────────────────────────────────────
-tab0, tab1, tab3, tab6, tab7 = st.tabs([
+tab0, tab1, tab3, tab4, tab6, tab7 = st.tabs([
     "**Overview**  \nProcess summary",
     "**Data & Discovery**  \nExplore your data",
     "**Model & Impact**  \nCausal analysis",
+    "**Case Inspection**  \nDrill into one case",
     "**Decision Intelligence**  \nInsights to action",
     "**Copilot**  \nAI assistant",
 ])
@@ -1408,8 +1409,9 @@ _TAB_ACCENTS = [
     ("#10B981", "#059669", "📊"),  # 1 Overview
     ("#3B82F6", "#2563EB", "🔍"),  # 2 Data & Discovery
     ("#8B5CF6", "#7C3AED", "🔗"),  # 3 Model & Impact
-    ("#F59E0B", "#D97706", "💡"),  # 4 Decision Intelligence
-    ("#06B6D4", "#0891B2", "✨"),  # 5 Copilot
+    ("#EC4899", "#DB2777", "🔬"),  # 4 Case Inspection
+    ("#F59E0B", "#D97706", "💡"),  # 5 Decision Intelligence
+    ("#06B6D4", "#0891B2", "✨"),  # 6 Copilot
 ]
 _tab_rules = ["""
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
@@ -1493,6 +1495,12 @@ with tab1:
         exec(compile(_tab_f.read(), _tab_mod_path, 'exec'), globals())
 with tab3:
     _tab_mod_path = os.path.join(os.path.dirname(__file__), 'tabs', 'tab_model_impact.py')
+    with open(_tab_mod_path, encoding='utf-8') as _tab_f:
+        exec(compile(_tab_f.read(), _tab_mod_path, 'exec'), globals())
+with tab4:
+    # Must exec after tab3 (Model & Impact) — reuses _conf_col/_conf_lbl/
+    # _sim_f1 computed there via the shared exec globals() dict.
+    _tab_mod_path = os.path.join(os.path.dirname(__file__), 'tabs', 'tab_case_inspection.py')
     with open(_tab_mod_path, encoding='utf-8') as _tab_f:
         exec(compile(_tab_f.read(), _tab_mod_path, 'exec'), globals())
 with tab6:
