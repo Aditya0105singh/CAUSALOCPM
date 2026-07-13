@@ -1385,7 +1385,7 @@ _stat_items = [
     (_svg_icon("award"), f"{_boot_stab_pct:.0f}% Reliable", "Confidence You Can Trust", _boot_stab_tooltip),
 ]
 _pipe_html = "".join(
-    f'<div style="display:flex; align-items:center; gap:12px; padding:6px 26px;'
+    f'<div style="display:flex; align-items:center; gap:12px; padding:6px 20px;'
     + ('' if _i == 0 else ' border-left:1px solid #E2E8F0;') +
     f'" title="{_tip}">'
     f'<div style="width:38px; height:38px; border-radius:11px; background:#ECFDF5; '
@@ -1479,8 +1479,9 @@ hero_ph.markdown(
 # unit, matching the reference design's banner + metrics-row layout.
 st.markdown(
     f'<div style="background:#FFFFFF; border:1px solid #D1FAE5; border-top:none; '
-    f'border-radius:0 0 16px 16px; padding:14px 28px; margin-bottom:24px; '
-    f'box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-wrap:wrap; align-items:center;">'
+    f'border-radius:0 0 16px 16px; padding:16px 32px; margin-bottom:24px; '
+    f'box-shadow:0 2px 8px rgba(0,0,0,0.02); display:flex; flex-wrap:wrap; align-items:center; '
+    f'justify-content:space-between;">'
     f'{_pipe_html}'
     f'</div>',
     unsafe_allow_html=True,
