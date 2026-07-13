@@ -48,28 +48,47 @@ st.markdown(
 if "case_selector" not in st.session_state or st.session_state["case_selector"] not in _case_pool:
     st.session_state["case_selector"] = _case_pool[0]
 
-_nav_prev, _nav_next, _nav_risk, _nav_pick = st.columns([1, 1, 2, 3])
+# Stepper layout: ◀ / selector / ▶ read as one paginator unit (arrows
+# flanking the dropdown they control) instead of four disconnected boxes
+# spread across the row. "Jump to Highest-Risk Case" is kept visually
+# separate and styled as the app's primary action color, since it's a
+# distinct shortcut, not part of stepping through cases one at a time.
+_cur_pos = _case_pool.index(st.session_state["case_selector"])
+st.markdown(
+    f'<div style="font-size:0.72rem;font-weight:700;color:{MUTED};text-transform:uppercase;'
+    f'letter-spacing:0.05em;margin-bottom:4px;">Case {_cur_pos + 1} of {len(_case_pool)}'
+    + (f' &nbsp;·&nbsp; showing first {len(_case_pool):,} of {len(case_ids):,} cases' if len(case_ids) > 200 else '')
+    + '</div>',
+    unsafe_allow_html=True,
+)
+_nav_prev, _nav_pick, _nav_next, _nav_risk = st.columns([0.6, 3.4, 0.6, 2.4])
+# Columns fix each widget's on-screen position regardless of the order
+# code runs in, but session_state["case_selector"] can't be written after
+# the selectbox with that key has been instantiated THIS run — so every
+# button's click is created and checked before the selectbox line below,
+# even though ◀ and ▶ visually sit on either side of it.
 with _nav_prev:
-    if st.button("◀ Prev", use_container_width=True):
-        _cur = _case_pool.index(st.session_state["case_selector"])
-        st.session_state["case_selector"] = _case_pool[(_cur - 1) % len(_case_pool)]
-        st.rerun()
+    _clicked_prev = st.button("◀", use_container_width=True, help="Previous case")
 with _nav_next:
-    if st.button("Next ▶", use_container_width=True):
-        _cur = _case_pool.index(st.session_state["case_selector"])
-        st.session_state["case_selector"] = _case_pool[(_cur + 1) % len(_case_pool)]
-        st.rerun()
+    _clicked_next = st.button("▶", use_container_width=True, help="Next case")
 with _nav_risk:
-    if st.button("🎯 Jump to Highest-Risk Case", use_container_width=True):
-        _pool_vals = df[outcome_var].iloc[:len(_case_pool)].to_numpy()
-        st.session_state["case_selector"] = _case_pool[int(_pool_vals.argmax())]
-        st.rerun()
+    _clicked_risk = st.button("🎯 Jump to Highest-Risk Case", use_container_width=True, type="primary")
+
+if _clicked_prev:
+    st.session_state["case_selector"] = _case_pool[(_cur_pos - 1) % len(_case_pool)]
+    st.rerun()
+if _clicked_next:
+    st.session_state["case_selector"] = _case_pool[(_cur_pos + 1) % len(_case_pool)]
+    st.rerun()
+if _clicked_risk:
+    _pool_vals = df[outcome_var].iloc[:len(_case_pool)].to_numpy()
+    st.session_state["case_selector"] = _case_pool[int(_pool_vals.argmax())]
+    st.rerun()
+
 with _nav_pick:
     selected_case = st.selectbox(
         "Select Case", options=_case_pool, key="case_selector", label_visibility="collapsed",
     )
-if len(case_ids) > 200:
-    st.caption(f"Showing the first 200 of {len(case_ids):,} cases.")
 st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
 case_idx = case_ids.index(selected_case) if selected_case in case_ids else 0
