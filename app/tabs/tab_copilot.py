@@ -71,20 +71,19 @@ def render_copilot():
         }
         /* BaseWeb's own textarea wrapper draws its own border independently
            of the outer stChatInput div above — confirmed via computed style
-           inspection. Forcing it to purple unconditionally (an earlier fix)
-           created a NEW mismatch: the outer pill's border is only purple
-           #7C3AED while :focus-within, and light lavender #DDD6FE at rest —
-           so an unconditional inner override showed a solid purple rectangle
-           nested inside a lighter pill at rest, i.e. two visibly different
-           boxes. Scoping the override to the same :focus-within state as the
-           outer pill keeps them matching in both states: transparent (so
-           BaseWeb's own default border, usually invisible against the white
-           background, shows through) at rest, purple only when focused. */
+           inspection, and matching its color to the outer pill (two earlier
+           fix attempts) still didn't fix it: the inner wrapper's own
+           getBoundingClientRect() showed it is a DIFFERENT SHAPE at a
+           different size than the outer pill — 8px square corners nested
+           inside the outer's 20px pill curve, and its right edge actually
+           overflows 5px past the outer container's right edge. Two nested
+           boxes of different shape/size will look like two boxes no matter
+           what color either border is. The only fix that holds regardless of
+           BaseWeb's internal geometry is to never let the inner wrapper draw
+           a visible border at all, in any state, and let the outer pill be
+           the only border/ring the user ever sees. */
         [data-testid="stChatInput"] [data-baseweb="textarea"] {
             border-color: transparent !important;
-        }
-        [data-testid="stChatInput"]:focus-within [data-baseweb="textarea"] {
-            border-color: #7C3AED !important;
         }
 
         /* 3. Base Chat Message Styling */
