@@ -69,16 +69,21 @@ def render_copilot():
             box-shadow: 0 0 0 4px rgba(124,58,237,0.15), 0 8px 24px rgba(0,0,0,0.06) !important;
             transform: translateY(-2px);
         }
-        /* BaseWeb's own textarea wrapper draws its own focus border in the
-           app's theme primary color (green) independently of the outer
-           stChatInput div above — confirmed via computed style inspection:
-           only border-bottom-color was overridden here, leaving top/right/
-           left at rgb(16,185,129) (#10B981, the theme green) while the
-           outer pill's border is purple (#7C3AED). The result was a visible
-           two-tone border — purple pill with a green rectangle showing
-           through on three sides — instead of one consistent ring. All four
-           sides are overridden now so the inner and outer borders agree. */
+        /* BaseWeb's own textarea wrapper draws its own border independently
+           of the outer stChatInput div above — confirmed via computed style
+           inspection. Forcing it to purple unconditionally (an earlier fix)
+           created a NEW mismatch: the outer pill's border is only purple
+           #7C3AED while :focus-within, and light lavender #DDD6FE at rest —
+           so an unconditional inner override showed a solid purple rectangle
+           nested inside a lighter pill at rest, i.e. two visibly different
+           boxes. Scoping the override to the same :focus-within state as the
+           outer pill keeps them matching in both states: transparent (so
+           BaseWeb's own default border, usually invisible against the white
+           background, shows through) at rest, purple only when focused. */
         [data-testid="stChatInput"] [data-baseweb="textarea"] {
+            border-color: transparent !important;
+        }
+        [data-testid="stChatInput"]:focus-within [data-baseweb="textarea"] {
             border-color: #7C3AED !important;
         }
 
