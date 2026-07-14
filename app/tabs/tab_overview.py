@@ -458,8 +458,18 @@ st.markdown(
 )
 
 # Overview chart: two independent series with their own metric axes
-# Discovery series: Structural Precision, Pre-DK Recall, Post-DK Recall (all graph-recovery metrics)
+# Discovery series: Post-DK Precision, Pre-DK Recall, Post-DK Recall (all graph-recovery metrics)
 # SCM series: Sign Consistency, Avg R² (avg across linear nodes), 1-MeanRelErr (coefficient accuracy)
+#
+# The precision bar is explicitly labeled "Post-DK" (not just "Graph
+# Precision") because _ov_prec below is dag_metrics' precision, computed
+# AFTER enforce_domain_knowledge() force-adds every planted ground-truth
+# edge — the same number this file's own AI Executive Summary / Model
+# Validation cards deliberately avoid showing elsewhere because it's not a
+# number the algorithm found on its own. Sitting it unlabeled next to a bar
+# explicitly marked "Pre-DK Recall" would look like the two came from the
+# same regime when they don't; the label makes that distinction visible
+# instead of implying false consistency between the two discovery bars.
 if not coefs.empty and "r2_score" in coefs.columns and not coefs["r2_score"].isna().all():
     _ov_avg_r2 = float(coefs["r2_score"].dropna().mean())
 else:
@@ -467,7 +477,7 @@ else:
     _ov_avg_r2 = float(np.mean(_r2_vals)) if _r2_vals else 0.0
 _ov_coef_acc = max(0.0, 1.0 - _ov_mean_err)  # 1 - mean relative error
 _ov_scm_vals = [_ov_sign_pct / 100, _ov_avg_r2, _ov_coef_acc]
-_ov_disc_x  = ["Graph Precision", "Pre-DK Recall", "Post-DK Recall"]
+_ov_disc_x  = ["Post-DK Precision", "Pre-DK Recall", "Post-DK Recall"]
 _ov_scm_x   = ["Sign Consistency", "Avg Model R²", "Coeff Accuracy"]
 
 fig_ov = go.Figure()
