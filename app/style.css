@@ -6,6 +6,13 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Base font-size bump (16px -> 18px, ~12%): nearly every font-size in this
+   app is declared in rem, so raising the root size scales all of them
+   proportionally in one place instead of hand-editing every hardcoded
+   value across every tab file. */
+html {
+    font-size: 18px !important;
+}
 html, body, [class*="css"] {
     font-family: 'Inter', -apple-system, sans-serif !important;
     color: #1E293B !important;

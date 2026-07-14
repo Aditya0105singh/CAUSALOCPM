@@ -1518,20 +1518,30 @@ _TAB_ACCENTS = [
     ("#06B6D4", "#0891B2", "✨"),  # 6 Copilot
 ]
 _tab_rules = ["""
+/* The tab bar's available width comes from Streamlit's own internal layout
+   (sidebar width, block-container padding, etc.), most of which is rem-based
+   internally — so the app-wide font bump (html { font-size: 18px } below)
+   shrank the space available to this row too, on top of anything in this
+   block's own rules. Tightened padding/gap/icon-badge size below to reclaim
+   that room, plus overflow-x:auto as a safety net so a tab can never fully
+   vanish off-screen again even if some future change re-tightens things
+   further — worst case it scrolls instead of clipping. */
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
     background: #FBFCFE !important;
     border: 1px solid #EDF0F5 !important;
     border-radius: 20px !important;
-    padding: 10px !important;
-    gap: 4px !important;
+    padding: 8px !important;
+    gap: 2px !important;
     box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04) !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
 }
 [data-testid="stTabs"] [data-baseweb="tab"] {
     position: relative !important;
     display: flex !important;
     align-items: center !important;
-    gap: 14px !important;
-    padding: 14px 24px 14px 20px !important;
+    gap: 8px !important;
+    padding: 12px 14px 12px 12px !important;
     min-height: 76px !important;
     border-radius: 14px !important;
     border-right: 1px solid #EDF0F5 !important;
@@ -1549,15 +1559,23 @@ _tab_rules = ["""
 [data-baseweb="tab-highlight"] { display: none !important; }
 [data-testid="stTabs"] [data-baseweb="tab"]::before {
     flex-shrink: 0;
-    width: 44px; height: 44px;
-    border-radius: 12px;
+    width: 38px; height: 38px;
+    border-radius: 11px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.25rem;
+    font-size: 18px;
     transition: background 0.18s ease;
 }
+/* Tab labels are pinned to fixed px (their exact rendered size at the old
+   16px root) instead of rem — the tab bar's own padding/gap/icon-badge
+   sizes are already fixed px and were tuned to fit exactly 6 tabs, so
+   letting these two rem values grow with the app-wide font bump below
+   (html { font-size: 18px }) pushed the label text just wide enough to
+   overflow the row and clip Decision Intelligence/Copilot off the right
+   edge. Freezing them here keeps the tab bar's layout untouched while
+   every other rem-sized element in the app still gets bigger. */
 [data-testid="stTabs"] [data-baseweb="tab"] [data-testid="stMarkdownContainer"] p {
     margin: 0 !important;
-    font-size: 0.72rem !important;
+    font-size: 11.52px !important;
     font-weight: 600 !important;
     color: #94A3B8 !important;
     line-height: 1.5 !important;
@@ -1565,7 +1583,7 @@ _tab_rules = ["""
 }
 [data-testid="stTabs"] [data-baseweb="tab"] [data-testid="stMarkdownContainer"] p strong {
     display: block;
-    font-size: 0.98rem !important;
+    font-size: 15.68px !important;
     font-weight: 800 !important;
     color: #0F172A !important;
     margin-bottom: 1px;
