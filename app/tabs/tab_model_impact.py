@@ -41,7 +41,7 @@ st.markdown(
             f"Structural model validated at precision <b>{_mi_prec:.2f}</b> / recall "
             f"<b>{_mi_rec:.2f}</b> against planted ground truth",
             "Treatment effects vary by operational segment (CATE) — explore further down this tab",
-            "Use the What-If Simulator below to test interventions, or the Case Inspection tab to "
+            "Use the What-If Simulator below to test interventions, or the Case Inspector tab to "
             "drill into any individual case's outcome",
         ],
     ),

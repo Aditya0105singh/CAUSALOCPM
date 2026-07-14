@@ -88,7 +88,7 @@ st.markdown(
             f"— precision {_dq_prec:.2f}, recall {_dq_rec:.2f} before domain knowledge is applied",
             f"Domain knowledge recovered {max(0, (_dq_wodk.get('false_negatives', 0) - ablation.get('with_domain_knowledge', {}).get('false_negatives', 0)))} "
             f"missing edge(s), guaranteeing DAG validity without inventing relationships",
-            f"Next step: estimate precise intervention effects in the <b>Model & Impact</b> tab",
+            f"Next step: estimate precise intervention effects in the <b>Model Performance</b> tab",
         ],
     ),
     unsafe_allow_html=True,
@@ -1703,7 +1703,7 @@ setTimeout(startAnim, 300);
         </ul>
         <div style="display: flex; justify-content: flex-end;">
             <span style="font-size: 0.9rem; font-weight: 700; color: #0284C7; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(2, 132, 199, 0.08); padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(2, 132, 199, 0.2);">
-                Navigate to Model & Impact above to continue →
+                Navigate to Model Performance above to continue →
             </span>
         </div>
     </div>

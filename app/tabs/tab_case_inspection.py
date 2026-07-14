@@ -30,7 +30,7 @@ st.markdown(
     f'<span style="width:30px;height:30px;border-radius:9px;background:#EC489922;display:flex;'
     f'align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">🔬</span>'
     f'<span style="font-size:0.85rem;font-weight:800;color:#EC4899;text-transform:uppercase;'
-    f'letter-spacing:0.08em;">Case Inspection</span>'
+    f'letter-spacing:0.08em;">Case Inspector</span>'
     f'</div>'
     f'<div style="font-size:0.95rem;color:#334155;line-height:1.5;">'
     f'Drill into any individual {("order" if domain == "manufacturing" else "patient")} to see exactly '

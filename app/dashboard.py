@@ -1498,8 +1498,8 @@ st.markdown(
 tab0, tab1, tab3, tab4, tab6, tab7 = st.tabs([
     "**Overview**  \nProcess summary",
     "**Data & Discovery**  \nExplore your data",
-    "**Model & Impact**  \nCausal analysis",
-    "**Case Inspection**  \nDrill into one case",
+    "**Model Performance**  \nCausal analysis",
+    "**Case Inspector**  \nDrill into one case",
     "**Decision Intelligence**  \nInsights to action",
     "**Copilot**  \nAI assistant",
 ])
@@ -1540,8 +1540,8 @@ _tab_rules = ["""
     position: relative !important;
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
-    padding: 12px 14px 12px 12px !important;
+    gap: 6px !important;
+    padding: 12px 10px 12px 10px !important;
     min-height: 76px !important;
     border-radius: 14px !important;
     border-right: 1px solid #EDF0F5 !important;
