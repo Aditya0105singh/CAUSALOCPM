@@ -69,12 +69,17 @@ def render_copilot():
             box-shadow: 0 0 0 4px rgba(124,58,237,0.15), 0 8px 24px rgba(0,0,0,0.06) !important;
             transform: translateY(-2px);
         }
-        /* BaseWeb's own textarea wrapper draws its own focus underline in
-           the app's theme primary color (green) independently of the outer
-           stChatInput div above — confirmed via computed style inspection,
-           not guessed. Overridden here so both rings agree. */
+        /* BaseWeb's own textarea wrapper draws its own focus border in the
+           app's theme primary color (green) independently of the outer
+           stChatInput div above — confirmed via computed style inspection:
+           only border-bottom-color was overridden here, leaving top/right/
+           left at rgb(16,185,129) (#10B981, the theme green) while the
+           outer pill's border is purple (#7C3AED). The result was a visible
+           two-tone border — purple pill with a green rectangle showing
+           through on three sides — instead of one consistent ring. All four
+           sides are overridden now so the inner and outer borders agree. */
         [data-testid="stChatInput"] [data-baseweb="textarea"] {
-            border-bottom-color: #7C3AED !important;
+            border-color: #7C3AED !important;
         }
 
         /* 3. Base Chat Message Styling */
